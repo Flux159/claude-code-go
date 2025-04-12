@@ -69,8 +69,15 @@ def execute_command():
             directory = str(Path(os.getcwd())) + "/claude-next-app"
             # return jsonify({'error': 'Directory is required'}), 400
 
-        # TODO: FIX this around parsing error - specifically command that has quotes will fail here
-        claude_command = f'claude -p --dangerously-skip-permissions --output-format "stream-json" "{command}"'
+        # Use list form to avoid issues with quotes in the command
+        claude_command = [
+            "claude",
+            "-p",
+            "--dangerously-skip-permissions",
+            "--output-format",
+            "stream-json",
+            command,  # No need for quotes when using list form
+        ]
         print(f"Executing command: {claude_command} in directory: {directory}")
 
         # Get shell environment
@@ -81,7 +88,7 @@ def execute_command():
             claude_command,
             cwd=directory,
             env=env,
-            shell=True,
+            shell=False,
             capture_output=True,
             text=True,
         )
@@ -101,13 +108,21 @@ def serve_test_html():
 def generate_sse_response(command: str, directory: str):
     """Generator function for SSE responses."""
     try:
-        claude_command = f'claude -p --dangerously-skip-permissions --output-format "stream-json" "{command}"'
+        # Use list form to avoid issues with quotes in the command
+        claude_command = [
+            "claude",
+            "-p",
+            "--dangerously-skip-permissions",
+            "--output-format",
+            "stream-json",
+            command,  # No need for quotes when using list form
+        ]
         print(f"Executing command: {claude_command} in directory: {directory}")
 
         process = subprocess.Popen(
             claude_command,
             cwd=directory,
-            shell=True,
+            shell=False,
             stdout=subprocess.PIPE,
             stderr=subprocess.PIPE,
             text=True,
