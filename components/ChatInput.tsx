@@ -185,7 +185,7 @@ export function ChatInput() {
           disabled={!text.trim()}
           hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
         >
-          <IconSymbol name="arrow.up" size={20} color={textColor} />
+          <IconSymbol name="arrow.up" size={20} color="white" />
         </TouchableOpacity>
       </View>
     </KeyboardAvoidingView>
