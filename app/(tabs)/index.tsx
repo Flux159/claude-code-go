@@ -1,74 +1,111 @@
-import { Image, StyleSheet, Platform } from 'react-native';
+import { useRouter } from 'expo-router';
+import React, { useRef, useState } from 'react';
+import { FlatList, SafeAreaView, StyleSheet, TouchableOpacity, View } from 'react-native';
 
-import { HelloWave } from '@/components/HelloWave';
-import ParallaxScrollView from '@/components/ParallaxScrollView';
+import { ChatInput } from '@/components/ChatInput';
+import { ChatMessage } from '@/components/ChatMessage';
+import { SettingsModal } from '@/components/SettingsModal';
 import { ThemedText } from '@/components/ThemedText';
 import { ThemedView } from '@/components/ThemedView';
+import { IconSymbol } from '@/components/ui/IconSymbol';
+import { useAppContext } from '@/contexts/AppContext';
+import { useThemeColor } from '@/hooks/useThemeColor';
 
-export default function HomeScreen() {
+export default function ChatScreen() {
+  const { messages, addMessage, hostname } = useAppContext();
+  const [settingsVisible, setSettingsVisible] = useState(false);
+  const flatListRef = useRef<FlatList>(null);
+  const router = useRouter();
+  const tintColor = useThemeColor({}, 'tint');
+
+  const handleSend = (text: string) => {
+    addMessage(text, 'user');
+  };
+
+  const handleServerResponse = (text: string) => {
+    addMessage(text, 'assistant');
+  };
+
+  const openWebPreview = () => {
+    router.push({
+      pathname: '/web-preview',
+      params: { hostname },
+    });
+  };
+
   return (
-    <ParallaxScrollView
-      headerBackgroundColor={{ light: '#A1CEDC', dark: '#1D3D47' }}
-      headerImage={
-        <Image
-          source={require('@/assets/images/partial-react-logo.png')}
-          style={styles.reactLogo}
+    <SafeAreaView style={styles.safeArea}>
+      <ThemedView style={styles.container}>
+        {/* Header */}
+        <ThemedView style={styles.header}>
+          <ThemedText type="title">Claude Go</ThemedText>
+          <View style={styles.headerButtons}>
+            <TouchableOpacity
+              style={styles.iconButton}
+              onPress={() => setSettingsVisible(true)}
+            >
+              <IconSymbol name="gearshape" size={24} color={tintColor} />
+            </TouchableOpacity>
+          </View>
+        </ThemedView>
+
+        {/* Chat Messages */}
+        <FlatList
+          ref={flatListRef}
+          data={messages}
+          keyExtractor={(item) => item.id}
+          renderItem={({ item }) => (
+            <ChatMessage
+              text={item.text}
+              sender={item.sender}
+              timestamp={item.timestamp}
+            />
+          )}
+          contentContainerStyle={styles.messagesContainer}
+          onContentSizeChange={() => {
+            if (messages.length > 0) {
+              flatListRef.current?.scrollToEnd({ animated: true });
+            }
+          }}
         />
-      }>
-      <ThemedView style={styles.titleContainer}>
-        <ThemedText type="title">Welcome!</ThemedText>
-        <HelloWave />
+
+        {/* Input Area */}
+        <ChatInput onSend={handleSend} />
+
+        {/* Settings Modal */}
+        <SettingsModal
+          visible={settingsVisible}
+          onClose={() => setSettingsVisible(false)}
+        />
       </ThemedView>
-      <ThemedView style={styles.stepContainer}>
-        <ThemedText type="subtitle">Step 1: Try it</ThemedText>
-        <ThemedText>
-          Edit <ThemedText type="defaultSemiBold">app/(tabs)/index.tsx</ThemedText> to see changes.
-          Press{' '}
-          <ThemedText type="defaultSemiBold">
-            {Platform.select({
-              ios: 'cmd + d',
-              android: 'cmd + m',
-              web: 'F12'
-            })}
-          </ThemedText>{' '}
-          to open developer tools.
-        </ThemedText>
-      </ThemedView>
-      <ThemedView style={styles.stepContainer}>
-        <ThemedText type="subtitle">Step 2: Explore</ThemedText>
-        <ThemedText>
-          Tap the Explore tab to learn more about what's included in this starter app.
-        </ThemedText>
-      </ThemedView>
-      <ThemedView style={styles.stepContainer}>
-        <ThemedText type="subtitle">Step 3: Get a fresh start</ThemedText>
-        <ThemedText>
-          When you're ready, run{' '}
-          <ThemedText type="defaultSemiBold">npm run reset-project</ThemedText> to get a fresh{' '}
-          <ThemedText type="defaultSemiBold">app</ThemedText> directory. This will move the current{' '}
-          <ThemedText type="defaultSemiBold">app</ThemedText> to{' '}
-          <ThemedText type="defaultSemiBold">app-example</ThemedText>.
-        </ThemedText>
-      </ThemedView>
-    </ParallaxScrollView>
+    </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
-  titleContainer: {
+  safeArea: {
+    flex: 1,
+  },
+  container: {
+    flex: 1,
+  },
+  header: {
     flexDirection: 'row',
+    justifyContent: 'space-between',
     alignItems: 'center',
-    gap: 8,
+    padding: 16,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: '#ccc',
   },
-  stepContainer: {
-    gap: 8,
-    marginBottom: 8,
+  headerButtons: {
+    flexDirection: 'row',
   },
-  reactLogo: {
-    height: 178,
-    width: 290,
-    bottom: 0,
-    left: 0,
-    position: 'absolute',
+  iconButton: {
+    padding: 8,
+    marginLeft: 8,
+  },
+  messagesContainer: {
+    flexGrow: 1,
+    padding: 16,
   },
 });
