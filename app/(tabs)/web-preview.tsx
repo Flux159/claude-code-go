@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
-import { ActivityIndicator, SafeAreaView, StyleSheet, View } from 'react-native';
+import React, { useEffect, useRef, useState } from 'react';
+import { SafeAreaView, StyleSheet, View } from 'react-native';
 import { WebView } from 'react-native-webview';
 
 import { ThemedText } from '@/components/ThemedText';
@@ -9,53 +9,47 @@ import { useThemeColor } from '@/hooks/useThemeColor';
 
 export default function WebPreviewScreen() {
   const { hostname, port } = useAppContext();
-  const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const backgroundColor = useThemeColor({}, 'background');
+  const webViewRef = useRef<WebView>(null);
+
+  useEffect(() => {
+    global.webViewRef = webViewRef;
+    return () => {
+      global.webViewRef = null;
+    };
+  }, []);
 
   const url = `http://${hostname}:${port}`;
+  const displayUrl = `${hostname}:${port}`;
 
   const handleLoadStart = () => {
-    setIsLoading(true);
     setError(null);
   };
 
-  const handleLoadEnd = () => {
-    setIsLoading(false);
-  };
-
   const handleError = () => {
-    setIsLoading(false);
-    setError(`Failed to load ${url}. Make sure the server is running and the hostname is correct.`);
+    setError(`Failed to load ${displayUrl}. Make sure the server is running and the hostname is correct.`);
   };
 
   return (
     <SafeAreaView style={styles.safeArea}>
       <ThemedView style={styles.container}>
-        <ThemedView style={styles.urlBar}>
-          <ThemedText>{url}</ThemedText>
-        </ThemedView>
+        <View style={styles.webViewContainer}>
+          <WebView
+            key={url}
+            ref={webViewRef}
+            source={{ uri: url }}
+            style={[styles.webView, { backgroundColor }]}
+            onLoadStart={handleLoadStart}
+            onError={handleError}
+          />
 
-        {error ? (
-          <ThemedView style={styles.errorContainer}>
-            <ThemedText style={styles.errorText}>{error}</ThemedText>
-          </ThemedView>
-        ) : (
-          <View style={styles.webViewContainer}>
-            <WebView
-              source={{ uri: url }}
-              style={[styles.webView, { backgroundColor }]}
-              onLoadStart={handleLoadStart}
-              onLoadEnd={handleLoadEnd}
-              onError={handleError}
-            />
-            {isLoading && (
-              <View style={styles.loadingContainer}>
-                <ActivityIndicator size="large" />
-              </View>
-            )}
-          </View>
-        )}
+          {error && (
+            <ThemedView style={styles.errorOverlay}>
+              <ThemedText style={styles.errorText}>{error}</ThemedText>
+            </ThemedView>
+          )}
+        </View>
       </ThemedView>
     </SafeAreaView>
   );
@@ -68,12 +62,6 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
   },
-  urlBar: {
-    padding: 10,
-    borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: '#cccccc80',
-    alignItems: 'center',
-  },
   webViewContainer: {
     flex: 1,
     position: 'relative',
@@ -81,17 +69,12 @@ const styles = StyleSheet.create({
   webView: {
     flex: 1,
   },
-  loadingContainer: {
+  errorOverlay: {
     position: 'absolute',
     top: 0,
     left: 0,
     right: 0,
     bottom: 0,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  errorContainer: {
-    flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
     padding: 20,

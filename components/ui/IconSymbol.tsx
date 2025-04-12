@@ -16,6 +16,7 @@ const MAPPING = {
   'message.fill': 'chat',
   'globe': 'public',
   'gearshape': 'settings',
+  'arrow.up': 'arrow-upward',
 } as Partial<
   Record<
     import('expo-symbols').SymbolViewProps['name'],

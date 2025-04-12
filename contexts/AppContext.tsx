@@ -1,10 +1,22 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import React, { createContext, ReactNode, useContext, useEffect, useState } from 'react';
 
-interface Message {
+export interface MessageContent {
+  type: 'text' | 'tool_use' | 'tool_result';
+  text?: string;
+  id?: string;
+  name?: string;
+  input?: any;
+  content?: any;
+  tool_use_id?: string;
+}
+
+export interface Message {
   id: string;
-  text: string;
-  sender: 'user' | 'assistant';
+  type?: string;
+  role: 'user' | 'assistant' | 'system';
+  model?: string;
+  content: MessageContent[];
   timestamp: Date;
 }
 
@@ -14,18 +26,30 @@ interface AppContextType {
   port: number;
   setPort: (port: number) => void;
   messages: Message[];
-  addMessage: (text: string, sender: 'user' | 'assistant') => void;
+  addMessage: (content: string | MessageContent[], role: 'user' | 'assistant' | 'system') => void;
   clearMessages: () => void;
+  isResponseLoading: boolean;
+  setIsResponseLoading: (isLoading: boolean) => void;
+  settingsVisible: boolean;
+  setSettingsVisible: (visible: boolean) => void;
+  isTogglingCollapsible: boolean;
+  setIsTogglingCollapsible: (isToggling: boolean) => void;
 }
 
 const defaultContext: AppContextType = {
   hostname: '',
-  setHostname: () => {},
+  setHostname: () => { },
   port: 3000,
-  setPort: () => {},
+  setPort: () => { },
   messages: [],
-  addMessage: () => {},
-  clearMessages: () => {},
+  addMessage: () => { },
+  clearMessages: () => { },
+  isResponseLoading: false,
+  setIsResponseLoading: () => { },
+  settingsVisible: false,
+  setSettingsVisible: () => { },
+  isTogglingCollapsible: false,
+  setIsTogglingCollapsible: () => { },
 };
 
 const AppContext = createContext<AppContextType>(defaultContext);
@@ -46,6 +70,9 @@ export function AppProvider({ children }: AppProviderProps) {
   const [port, setPort] = useState(3000);
   const [messages, setMessages] = useState<Message[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [isResponseLoading, setIsResponseLoading] = useState(false);
+  const [settingsVisible, setSettingsVisible] = useState(false);
+  const [isTogglingCollapsible, setIsTogglingCollapsible] = useState(false);
 
   // Load saved hostname and port when app starts
   useEffect(() => {
@@ -89,12 +116,14 @@ export function AppProvider({ children }: AppProviderProps) {
     }
   };
 
-  const addMessage = (text: string, sender: 'user' | 'assistant') => {
+  const addMessage = (content: string | MessageContent[], role: 'user' | 'assistant' | 'system') => {
     const newMessage: Message = {
-      id: Date.now().toString(),
-      text,
-      sender,
-      timestamp: new Date(),
+      id: `${Date.now()}-${Math.random().toString(36).substring(2, 9)}`,
+      role,
+      content: typeof content === 'string'
+        ? [{ type: 'text', text: content }]
+        : content,
+      timestamp: new Date()
     };
     setMessages((prevMessages) => [...prevMessages, newMessage]);
   };
@@ -111,6 +140,12 @@ export function AppProvider({ children }: AppProviderProps) {
     messages,
     addMessage,
     clearMessages,
+    isResponseLoading,
+    setIsResponseLoading,
+    settingsVisible,
+    setSettingsVisible,
+    isTogglingCollapsible,
+    setIsTogglingCollapsible,
   };
 
   // Show a loading screen or return null while loading

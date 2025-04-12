@@ -1,63 +1,91 @@
-import React, { useRef, useState } from 'react';
-import { FlatList, SafeAreaView, StyleSheet, TouchableOpacity, View } from 'react-native';
+import React, { useRef } from 'react';
+import { FlatList, SafeAreaView, StyleSheet, View } from 'react-native';
 
 import { ChatInput } from '@/components/ChatInput';
-import { ChatMessage } from '@/components/ChatMessage';
+import { ChatMessage, LoadingDots } from '@/components/ChatMessage';
 import { SettingsModal } from '@/components/SettingsModal';
-import { ThemedText } from '@/components/ThemedText';
 import { ThemedView } from '@/components/ThemedView';
-import { IconSymbol } from '@/components/ui/IconSymbol';
 import { useAppContext } from '@/contexts/AppContext';
 import { useThemeColor } from '@/hooks/useThemeColor';
 
 export default function ChatScreen() {
-  const { messages, addMessage } = useAppContext();
-  const [settingsVisible, setSettingsVisible] = useState(false);
+  const { messages, isResponseLoading, settingsVisible, setSettingsVisible, isTogglingCollapsible } = useAppContext();
   const flatListRef = useRef<FlatList>(null);
-  const tintColor = useThemeColor({}, 'tint');
+  const assistantBubbleColor = useThemeColor({}, 'assistantBubble');
 
-  const handleSend = (text: string) => {
-    addMessage(text, 'user');
+  // Create a global tool results map
+  const toolResultsMap = React.useMemo(() => {
+    const map: Record<string, any> = {};
+
+    // Process all messages to build the tool results map
+    messages.forEach(message => {
+      message.content.forEach(item => {
+        if (item.type === 'tool_result' && item.tool_use_id) {
+          map[item.tool_use_id] = item;
+        }
+      });
+    });
+
+    return map;
+  }, [messages]);
+
+  // Filter out messages that only contain tool results that have been combined
+  const filteredMessages = React.useMemo(() => {
+    return messages.filter(message => {
+      // Keep all user messages
+      if (message.role === 'user') return true;
+
+      // For assistant messages, check if they contain anything other than tool results
+      // or if they contain tool results that haven't been combined
+      return message.content.some(item =>
+        item.type !== 'tool_result' ||
+        !item.tool_use_id ||
+        !toolResultsMap[item.tool_use_id]
+      );
+    });
+  }, [messages, toolResultsMap]);
+
+  // Loading indicator component to show at the bottom of the message list
+  const LoadingIndicator = () => {
+    if (!isResponseLoading) return null;
+
+    return (
+      <View style={styles.assistantContainer}>
+        <ThemedView
+          style={[
+            styles.bubble,
+            styles.assistantBubble,
+            { backgroundColor: assistantBubbleColor }
+          ]}
+        >
+          <LoadingDots />
+        </ThemedView>
+      </View>
+    );
   };
 
   return (
     <SafeAreaView style={styles.safeArea}>
       <ThemedView style={styles.container}>
-        {/* Header */}
-        <ThemedView style={styles.header}>
-          <ThemedText type="title">Claude Go</ThemedText>
-          <View style={styles.headerButtons}>
-            <TouchableOpacity
-              style={styles.iconButton}
-              onPress={() => setSettingsVisible(true)}
-            >
-              <IconSymbol name="gearshape" size={24} color={tintColor} />
-            </TouchableOpacity>
-          </View>
-        </ThemedView>
-
         {/* Chat Messages */}
         <FlatList
           ref={flatListRef}
-          data={messages}
+          data={filteredMessages}
           keyExtractor={(item) => item.id}
           renderItem={({ item }) => (
-            <ChatMessage
-              text={item.text}
-              sender={item.sender}
-              timestamp={item.timestamp}
-            />
+            <ChatMessage message={item} toolResultsMap={toolResultsMap} />
           )}
+          ListFooterComponent={<LoadingIndicator />}
           contentContainerStyle={styles.messagesContainer}
           onContentSizeChange={() => {
-            if (messages.length > 0) {
+            if (!isTogglingCollapsible) {
               flatListRef.current?.scrollToEnd({ animated: true });
             }
           }}
         />
 
         {/* Input Area */}
-        <ChatInput onSend={handleSend} />
+        <ChatInput />
 
         {/* Settings Modal */}
         <SettingsModal
@@ -76,23 +104,29 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
   },
-  header: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    padding: 16,
-    borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: '#cccccc80',
-  },
-  headerButtons: {
-    flexDirection: 'row',
-  },
-  iconButton: {
-    padding: 8,
-    marginLeft: 8,
-  },
   messagesContainer: {
     flexGrow: 1,
     padding: 16,
+  },
+  assistantContainer: {
+    alignSelf: 'flex-start',
+    alignItems: 'flex-start',
+    marginVertical: 8,
+    maxWidth: '80%',
+  },
+  bubble: {
+    padding: 12,
+    borderRadius: 18,
+    shadowColor: '#000',
+    shadowOffset: {
+      width: 0,
+      height: 1,
+    },
+    shadowOpacity: 0.1,
+    shadowRadius: 1,
+    elevation: 1,
+  },
+  assistantBubble: {
+    borderBottomLeftRadius: 4,
   },
 });
