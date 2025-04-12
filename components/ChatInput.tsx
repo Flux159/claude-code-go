@@ -8,6 +8,7 @@ import {
   View,
 } from 'react-native';
 
+import { Constants } from '@/constants/Constants';
 import { useAppContext } from '@/contexts/AppContext';
 import { useThemeColor } from '@/hooks/useThemeColor';
 import { IconSymbol } from './ui/IconSymbol';
@@ -18,7 +19,7 @@ interface ChatInputProps {
 
 export function ChatInput({ onSend }: ChatInputProps) {
   const [text, setText] = useState('');
-  const { hostname } = useAppContext();
+  const { hostname, port, addMessage } = useAppContext();
   const backgroundColor = useThemeColor({}, 'background');
   const textColor = useThemeColor({}, 'text');
   const tintColor = useThemeColor({}, 'tint');
@@ -31,30 +32,33 @@ export function ChatInput({ onSend }: ChatInputProps) {
 
     try {
       // Send the message to the server
-      const response = await fetch(`http://${hostname}:3000/execute-command`, {
+      const response = await fetch(`http://${hostname}:${Constants.serverPort}/prompt`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({ command: text }),
+        body: JSON.stringify({
+          command: text
+        }),
       });
 
       if (!response.ok) {
-        throw new Error('Failed to send command to server');
+        throw new Error('Failed to send message to server');
       }
 
       const data = await response.json();
 
-      // Add the response to the chat
+      // Add the response to the chat as an assistant message
       if (data.stdout) {
-        onSend(data.stdout);
+        // Use the AppContext directly to specify the sender as 'assistant'
+        addMessage(data.stdout, 'assistant');
       } else if (data.stderr) {
-        onSend(`Error: ${data.stderr}`);
+        addMessage(`Error: ${data.stderr}`, 'assistant');
       } else {
-        onSend('Command executed successfully with no output.');
+        addMessage('No response from the server.', 'assistant');
       }
     } catch (error) {
-      onSend(`Error: ${error instanceof Error ? error.message : 'Unknown error'}`);
+      addMessage(`Error: ${error instanceof Error ? error.message : 'Unknown error'}`, 'assistant');
     }
   };
 

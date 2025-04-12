@@ -30,7 +30,12 @@ export function ChatMessage({ text, sender, timestamp }: ChatMessageProps) {
           isUser ? { backgroundColor: primaryColor } : {},
         ]}
       >
-        <ThemedText style={isUser ? styles.userText : styles.assistantText}>{text}</ThemedText>
+        <ThemedText
+          style={isUser ? styles.userText : styles.assistantText}
+          selectable={true}
+        >
+          {text}
+        </ThemedText>
       </ThemedView>
       <ThemedText style={styles.timestamp}>{formattedTime}</ThemedText>
     </View>
