@@ -15,7 +15,7 @@ import { IconSymbol } from './ui/IconSymbol';
 
 export function ChatInput() {
   const [text, setText] = useState('');
-  const { hostname, addMessage, setIsResponseLoading } = useAppContext();
+  const { hostname, messages, addMessage, setIsResponseLoading } = useAppContext();
   const backgroundColor = useThemeColor({}, 'background');
   const textColor = useThemeColor({}, 'text');
   const tintColor = useThemeColor({}, 'tint');
@@ -65,6 +65,32 @@ export function ChatInput() {
 
     setIsResponseLoading(true);
 
+    // Format conversation history as plain text with User/Assistant prefixes
+    const conversationHistory = messages
+      .map(message => {
+        // Extract only text content items
+        const textContent = message.content
+          .filter(item => item.type === 'text')
+          .map(item => item.text)
+          .join(' ');
+
+        // Skip messages with no text content
+        if (!textContent) return null;
+
+        // Format as "User: ..." or "Assistant: ..."
+        const role = message.role.charAt(0).toUpperCase() + message.role.slice(1);
+        return `${role}: ${textContent}`;
+      })
+      .filter(Boolean) // Remove null entries
+      .join('\n');
+
+    // Add the current message to the conversation history with User prefix
+    const fullConversation = conversationHistory
+      ? `${conversationHistory}\nUser: ${text}`
+      : `User: ${text}`;
+
+    const commandWithHistory = fullConversation;
+
     try {
       const response = await fetch(`http://${hostname}:${Constants.serverPort}/prompt`, {
         method: 'POST',
@@ -72,7 +98,7 @@ export function ChatInput() {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          command: text
+          command: commandWithHistory
         }),
       });
 
