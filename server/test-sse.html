@@ -1,400 +1,416 @@
 <!DOCTYPE html>
 <html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>SSE Test</title>
     <style>
-        body {
-            font-family: Arial, sans-serif;
-            max-width: 1000px;
-            margin: 0 auto;
-            padding: 20px;
-        }
-        .container {
-            display: flex;
-            gap: 20px;
-        }
-        .file-browser {
-            flex: 1;
-            border: 1px solid #ddd;
-            padding: 10px;
-            height: 500px;
-            overflow-y: auto;
-        }
-        .terminal {
-            flex: 1;
-            display: flex;
-            flex-direction: column;
-        }
-        #output {
-            background-color: #f5f5f5;
-            border: 1px solid #ddd;
-            padding: 10px;
-            height: 400px;
-            overflow-y: auto;
-            white-space: pre-wrap;
-            font-family: monospace;
-            flex-grow: 1;
-        }
-        .controls {
-            margin-bottom: 20px;
-        }
-        input[type="text"] {
-            width: 70%;
-            padding: 8px;
-        }
-        button {
-            padding: 8px 16px;
-            background-color: #4CAF50;
-            color: white;
-            border: none;
-            cursor: pointer;
-            margin-right: 5px;
-        }
-        button:hover {
-            background-color: #45a049;
-        }
-        .event {
-            margin-bottom: 10px;
-            padding: 5px;
-            border-bottom: 1px solid #eee;
-        }
-        .stdout {
-            color: #0066cc;
-        }
-        .stderr {
-            color: #cc0000;
-        }
-        .exit {
-            color: #009900;
-            font-weight: bold;
-        }
-        .file-item {
-            padding: 5px;
-            cursor: pointer;
-            border-bottom: 1px solid #eee;
-        }
-        .file-item:hover {
-            background-color: #f0f0f0;
-        }
-        .directory {
-            font-weight: bold;
-        }
-        .file {
-            padding-left: 20px;
-        }
-        .path-display {
-            margin-bottom: 10px;
-            padding: 5px;
-            background-color: #f0f0f0;
-            border-radius: 3px;
-        }
-        .status {
-            margin-top: 10px;
-            padding: 5px;
-            background-color: #f0f0f0;
-            border-radius: 3px;
-            font-style: italic;
-        }
+      body {
+        font-family: Arial, sans-serif;
+        max-width: 1000px;
+        margin: 0 auto;
+        padding: 20px;
+      }
+      .container {
+        display: flex;
+        gap: 20px;
+      }
+      .file-browser {
+        flex: 1;
+        border: 1px solid #ddd;
+        padding: 10px;
+        height: 500px;
+        overflow-y: auto;
+      }
+      .terminal {
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+      }
+      #output {
+        background-color: #f5f5f5;
+        border: 1px solid #ddd;
+        padding: 10px;
+        height: 400px;
+        overflow-y: auto;
+        white-space: pre-wrap;
+        font-family: monospace;
+        flex-grow: 1;
+      }
+      .controls {
+        margin-bottom: 20px;
+      }
+      input[type="text"] {
+        width: 70%;
+        padding: 8px;
+      }
+      button {
+        padding: 8px 16px;
+        background-color: #4caf50;
+        color: white;
+        border: none;
+        cursor: pointer;
+        margin-right: 5px;
+      }
+      button:hover {
+        background-color: #45a049;
+      }
+      .event {
+        margin-bottom: 10px;
+        padding: 5px;
+        border-bottom: 1px solid #eee;
+      }
+      .stdout {
+        color: #0066cc;
+      }
+      .stderr {
+        color: #cc0000;
+      }
+      .exit {
+        color: #009900;
+        font-weight: bold;
+      }
+      .file-item {
+        padding: 5px;
+        cursor: pointer;
+        border-bottom: 1px solid #eee;
+      }
+      .file-item:hover {
+        background-color: #f0f0f0;
+      }
+      .directory {
+        font-weight: bold;
+      }
+      .file {
+        padding-left: 20px;
+      }
+      .path-display {
+        margin-bottom: 10px;
+        padding: 5px;
+        background-color: #f0f0f0;
+        border-radius: 3px;
+      }
+      .status {
+        margin-top: 10px;
+        padding: 5px;
+        background-color: #f0f0f0;
+        border-radius: 3px;
+        font-style: italic;
+      }
     </style>
-</head>
-<body>
+  </head>
+  <body>
     <h1>Server-Sent Events Test</h1>
-    
+
     <div class="container">
-        <div class="file-browser">
-            <h2>File Browser</h2>
-            <div class="path-display" id="current-path">Loading...</div>
-            <div id="file-list">Loading...</div>
+      <div class="file-browser">
+        <h2>File Browser</h2>
+        <div class="path-display" id="current-path">Loading...</div>
+        <div id="file-list">Loading...</div>
+      </div>
+
+      <div class="terminal">
+        <h2>Command Terminal</h2>
+        <div class="controls">
+          <input
+            type="text"
+            id="command"
+            placeholder="Enter command (e.g., ls -la)"
+            value="ls -la"
+          />
+          <button id="start">Start Command (Stream)</button>
+          <button id="startNonStream">Start Command (Non-Stream)</button>
+          <button id="stop">Stop</button>
         </div>
-        
-        <div class="terminal">
-            <h2>Command Terminal</h2>
-            <div class="controls">
-                <input type="text" id="command" placeholder="Enter command (e.g., ls -la)" value="ls -la">
-                <button id="start">Start Command (Stream)</button>
-                <button id="startNonStream">Start Command (Non-Stream)</button>
-                <button id="stop">Stop</button>
-            </div>
-            
-            <div id="output"></div>
-            <div class="status" id="status">Ready</div>
-        </div>
+
+        <div id="output"></div>
+        <div class="status" id="status">Ready</div>
+      </div>
     </div>
-    
+
     <script>
-        const outputDiv = document.getElementById('output');
-        const commandInput = document.getElementById('command');
-        const startButton = document.getElementById('start');
-        const startNonStreamButton = document.getElementById('startNonStream');
-        const stopButton = document.getElementById('stop');
-        const fileListDiv = document.getElementById('file-list');
-        const currentPathDiv = document.getElementById('current-path');
-        const statusDiv = document.getElementById('status');
-        let controller = null;
-        let currentDirectory = '';
-        let eventSource = null;
-        
-        // Initialize the file browser
-        async function initFileBrowser() {
-            try {
-                // Get the default directory
-                const response = await fetch('/directories');
-                const data = await response.json();
-                currentDirectory = data.directory;
-                currentPathDiv.textContent = currentDirectory;
-                
-                // Load the directory contents
-                await loadDirectory(currentDirectory);
-            } catch (error) {
-                fileListDiv.innerHTML = `<div class="error">Error loading directory: ${error.message}</div>`;
-            }
+      const outputDiv = document.getElementById("output");
+      const commandInput = document.getElementById("command");
+      const startButton = document.getElementById("start");
+      const startNonStreamButton = document.getElementById("startNonStream");
+      const stopButton = document.getElementById("stop");
+      const fileListDiv = document.getElementById("file-list");
+      const currentPathDiv = document.getElementById("current-path");
+      const statusDiv = document.getElementById("status");
+      let controller = null;
+      let currentDirectory = "";
+      let eventSource = null;
+
+      // Initialize the file browser
+      async function initFileBrowser() {
+        try {
+          // Get the default directory
+          const response = await fetch("/directories");
+          const data = await response.json();
+          currentDirectory = data.directory;
+          currentPathDiv.textContent = currentDirectory;
+
+          // Load the directory contents
+          await loadDirectory(currentDirectory);
+        } catch (error) {
+          fileListDiv.innerHTML = `<div class="error">Error loading directory: ${error.message}</div>`;
         }
-        
-        // Load directory contents
-        async function loadDirectory(directory) {
-            try {
-                fileListDiv.innerHTML = 'Loading...';
-                
-                const response = await fetch('/directories', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json'
-                    },
-                    body: JSON.stringify({ directory })
-                });
-                
-                const data = await response.json();
-                
-                if (response.ok) {
-                    currentDirectory = directory;
-                    currentPathDiv.textContent = directory;
-                    
-                    // Create the file list
-                    let html = '';
-                    
-                    // Add parent directory link if not at root
-                    if (directory !== '/' && directory !== '') {
-                        const parentDir = directory.split('/').slice(0, -1).join('/') || '/';
-                        html += `<div class="file-item directory" data-path="${parentDir}">..</div>`;
-                    }
-                    
-                    // Add directories first
-                    data.contents
-                        .filter(item => item.type === 'directory')
-                        .forEach(item => {
-                            html += `<div class="file-item directory" data-path="${item.path}">📁 ${item.name}</div>`;
-                        });
-                    
-                    // Then add files
-                    data.contents
-                        .filter(item => item.type === 'file')
-                        .forEach(item => {
-                            html += `<div class="file-item file" data-path="${item.path}">📄 ${item.name}</div>`;
-                        });
-                    
-                    fileListDiv.innerHTML = html;
-                    
-                    // Add click event listeners
-                    document.querySelectorAll('.file-item').forEach(item => {
-                        item.addEventListener('click', () => {
-                            const path = item.getAttribute('data-path');
-                            if (item.classList.contains('directory')) {
-                                loadDirectory(path);
-                            }
-                        });
-                    });
-                } else {
-                    fileListDiv.innerHTML = `<div class="error">Error: ${data.error}</div>`;
-                }
-            } catch (error) {
-                fileListDiv.innerHTML = `<div class="error">Error loading directory: ${error.message}</div>`;
+      }
+
+      // Load directory contents
+      async function loadDirectory(directory) {
+        try {
+          fileListDiv.innerHTML = "Loading...";
+
+          const response = await fetch("/directories", {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify({ directory }),
+          });
+
+          const data = await response.json();
+
+          if (response.ok) {
+            currentDirectory = directory;
+            currentPathDiv.textContent = directory;
+
+            // Create the file list
+            let html = "";
+
+            // Add parent directory link if not at root
+            if (directory !== "/" && directory !== "") {
+              const parentDir =
+                directory.split("/").slice(0, -1).join("/") || "/";
+              html += `<div class="file-item directory" data-path="${parentDir}">..</div>`;
             }
+
+            // Add directories first
+            data.contents
+              .filter((item) => item.type === "directory")
+              .filter((item) => !item.name.startsWith("."))
+              .forEach((item) => {
+                html += `<div class="file-item directory" data-path="${item.path}">📁 ${item.name}</div>`;
+              });
+
+            // Then add files
+            data.contents
+              .filter((item) => item.type === "file")
+              .filter((item) => !item.name.startsWith("."))
+              .forEach((item) => {
+                html += `<div class="file-item file" data-path="${item.path}">📄 ${item.name}</div>`;
+              });
+
+            fileListDiv.innerHTML = html;
+
+            // Add click event listeners
+            document.querySelectorAll(".file-item").forEach((item) => {
+              item.addEventListener("click", () => {
+                const path = item.getAttribute("data-path");
+                if (item.classList.contains("directory")) {
+                  loadDirectory(path);
+                }
+              });
+            });
+          } else {
+            fileListDiv.innerHTML = `<div class="error">Error: ${data.error}</div>`;
+          }
+        } catch (error) {
+          fileListDiv.innerHTML = `<div class="error">Error loading directory: ${error.message}</div>`;
         }
-        
-        function clearOutput() {
-            outputDiv.innerHTML = '';
+      }
+
+      function clearOutput() {
+        outputDiv.innerHTML = "";
+      }
+
+      function appendOutput(text, className = "") {
+        const div = document.createElement("div");
+        div.className = `event ${className}`;
+        div.textContent = text;
+        outputDiv.appendChild(div);
+        outputDiv.scrollTop = outputDiv.scrollHeight;
+      }
+
+      function updateStatus(text) {
+        statusDiv.textContent = text;
+      }
+
+      async function startCommand() {
+        clearOutput();
+        updateStatus("Connecting...");
+
+        const command = commandInput.value.trim();
+        if (!command) {
+          appendOutput("Please enter a command", "stderr");
+          updateStatus("Ready");
+          return;
         }
-        
-        function appendOutput(text, className = '') {
-            const div = document.createElement('div');
-            div.className = `event ${className}`;
-            div.textContent = text;
-            outputDiv.appendChild(div);
-            outputDiv.scrollTop = outputDiv.scrollHeight;
+
+        // Close any existing connection
+        if (eventSource) {
+          eventSource.close();
+          eventSource = null;
         }
-        
-        function updateStatus(text) {
-            statusDiv.textContent = text;
-        }
-        
-        async function startCommand() {
-            clearOutput();
-            updateStatus('Connecting...');
-            
-            const command = commandInput.value.trim();
-            if (!command) {
-                appendOutput('Please enter a command', 'stderr');
-                updateStatus('Ready');
-                return;
+
+        try {
+          // Create a new AbortController
+          controller = new AbortController();
+
+          // Make a POST request to the /promptstream endpoint
+          console.log("Making request...");
+          const response = await fetch("/promptstream", {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify({
+              command,
+              directory: currentDirectory,
+            }),
+            signal: controller.signal,
+          });
+          console.log("fetch done");
+
+          if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+          }
+
+          updateStatus("Connected, waiting for output...");
+
+          // Process the SSE response
+          const reader = response.body.getReader();
+          const decoder = new TextDecoder();
+          let buffer = "";
+
+          // Keep the connection alive by reading data
+          while (true) {
+            const { done, value } = await reader.read();
+
+            if (done) {
+              console.log("Stream complete");
+              break;
             }
-            
-            // Close any existing connection
-            if (eventSource) {
-                eventSource.close();
-                eventSource = null;
+
+            // Decode the chunk and add it to our buffer
+            const chunk = decoder.decode(value, { stream: true });
+            buffer += chunk;
+
+            // Process complete SSE messages
+            const lines = buffer.split("\n\n");
+            buffer = lines.pop() || ""; // Keep the last incomplete chunk in the buffer
+
+            for (const line of lines) {
+              if (line.startsWith("data: ")) {
+                try {
+                  const data = JSON.parse(line.substring(6));
+
+                  if (data.stdout) {
+                    appendOutput(data.stdout, "stdout");
+                  }
+
+                  if (data.stderr) {
+                    appendOutput(data.stderr, "stderr");
+                  }
+
+                  if (data.error) {
+                    appendOutput(`Error: ${data.error}`, "stderr");
+                  }
+
+                  if (data.exitCode !== undefined) {
+                    appendOutput(
+                      `Command exited with code ${data.exitCode}${
+                        data.signal ? ` and signal ${data.signal}` : ""
+                      }`,
+                      "exit"
+                    );
+                    updateStatus("Command completed");
+                  }
+                } catch (error) {
+                  appendOutput(
+                    `Error parsing event data: ${error.message}`,
+                    "stderr"
+                  );
+                }
+              }
             }
-            
-            try {
-                // Create a new AbortController
-                controller = new AbortController();
-                
-                // Make a POST request to the /promptstream endpoint
-                console.log('Making request...');
-                const response = await fetch('/promptstream', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json'
-                    },
-                    body: JSON.stringify({
-                        command,
-                        directory: currentDirectory
-                    }),
-                    signal: controller.signal
-                });
-                console.log('fetch done');
-                
-                if (!response.ok) {
-                    throw new Error(`HTTP error! status: ${response.status}`);
-                }
-                
-                updateStatus('Connected, waiting for output...');
-                
-                // Process the SSE response
-                const reader = response.body.getReader();
-                const decoder = new TextDecoder();
-                let buffer = '';
-                
-                // Keep the connection alive by reading data
-                while (true) {
-                    const { done, value } = await reader.read();
-                    
-                    if (done) {
-                        console.log('Stream complete');
-                        break;
-                    }
-                    
-                    // Decode the chunk and add it to our buffer
-                    const chunk = decoder.decode(value, { stream: true });
-                    buffer += chunk;
-                    
-                    // Process complete SSE messages
-                    const lines = buffer.split('\n\n');
-                    buffer = lines.pop() || ''; // Keep the last incomplete chunk in the buffer
-                    
-                    for (const line of lines) {
-                        if (line.startsWith('data: ')) {
-                            try {
-                                const data = JSON.parse(line.substring(6));
-                                
-                                if (data.stdout) {
-                                    appendOutput(data.stdout, 'stdout');
-                                }
-                                
-                                if (data.stderr) {
-                                    appendOutput(data.stderr, 'stderr');
-                                }
-                                
-                                if (data.error) {
-                                    appendOutput(`Error: ${data.error}`, 'stderr');
-                                }
-                                
-                                if (data.exitCode !== undefined) {
-                                    appendOutput(`Command exited with code ${data.exitCode}${data.signal ? ` and signal ${data.signal}` : ''}`, 'exit');
-                                    updateStatus('Command completed');
-                                }
-                            } catch (error) {
-                                appendOutput(`Error parsing event data: ${error.message}`, 'stderr');
-                            }
-                        }
-                    }
-                }
-            } catch (error) {
-                if (error.name === 'AbortError') {
-                    appendOutput('Command stopped by user', 'exit');
-                } else {
-                    appendOutput(`Error: ${error.message}`, 'stderr');
-                }
-            } finally {
-                controller = null;
-            }
+          }
+        } catch (error) {
+          if (error.name === "AbortError") {
+            appendOutput("Command stopped by user", "exit");
+          } else {
+            appendOutput(`Error: ${error.message}`, "stderr");
+          }
+        } finally {
+          controller = null;
         }
-        
-        async function startNonStreamCommand() {
-            clearOutput();
-            updateStatus('Connecting...');
-            
-            const command = commandInput.value.trim();
-            if (!command) {
-                appendOutput('Please enter a command', 'stderr');
-                updateStatus('Ready');
-                return;
-            }
-            
-            try {
-                // Make a POST request to the /prompt endpoint
-                console.log('Making non-stream request...');
-                const response = await fetch('/prompt', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json'
-                    },
-                    body: JSON.stringify({
-                        command,
-                        directory: currentDirectory
-                    })
-                });
-                
-                if (!response.ok) {
-                    throw new Error(`HTTP error! status: ${response.status}`);
-                }
-                
-                const data = await response.json();
-                
-                if (data.stdout) {
-                    appendOutput(data.stdout, 'stdout');
-                }
-                
-                if (data.stderr) {
-                    appendOutput(data.stderr, 'stderr');
-                }
-                
-                if (data.error) {
-                    appendOutput(`Error: ${data.error}`, 'stderr');
-                }
-                
-                updateStatus('Command completed');
-            } catch (error) {
-                appendOutput(`Error: ${error.message}`, 'stderr');
-                updateStatus('Error occurred');
-            }
+      }
+
+      async function startNonStreamCommand() {
+        clearOutput();
+        updateStatus("Connecting...");
+
+        const command = commandInput.value.trim();
+        if (!command) {
+          appendOutput("Please enter a command", "stderr");
+          updateStatus("Ready");
+          return;
         }
-        
-        function stopCommand() {
-            if (controller) {
-                controller.abort();
-                controller = null;
-                updateStatus('Command stopped by user');
-            }
+
+        try {
+          // Make a POST request to the /prompt endpoint
+          console.log("Making non-stream request...");
+          const response = await fetch("/prompt", {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify({
+              command,
+              directory: currentDirectory,
+            }),
+          });
+
+          if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+          }
+
+          const data = await response.json();
+
+          if (data.stdout) {
+            appendOutput(data.stdout, "stdout");
+          }
+
+          if (data.stderr) {
+            appendOutput(data.stderr, "stderr");
+          }
+
+          if (data.error) {
+            appendOutput(`Error: ${data.error}`, "stderr");
+          }
+
+          updateStatus("Command completed");
+        } catch (error) {
+          appendOutput(`Error: ${error.message}`, "stderr");
+          updateStatus("Error occurred");
         }
-        
-        // Initialize the file browser when the page loads
-        initFileBrowser();
-        
-        startButton.addEventListener('click', startCommand);
-        startNonStreamButton.addEventListener('click', startNonStreamCommand);
-        stopButton.addEventListener('click', stopCommand);
+      }
+
+      function stopCommand() {
+        if (controller) {
+          controller.abort();
+          controller = null;
+          updateStatus("Command stopped by user");
+        }
+      }
+
+      // Initialize the file browser when the page loads
+      initFileBrowser();
+
+      startButton.addEventListener("click", startCommand);
+      startNonStreamButton.addEventListener("click", startNonStreamCommand);
+      stopButton.addEventListener("click", stopCommand);
     </script>
-</body>
-</html> 
+  </body>
+</html>
