@@ -82,13 +82,34 @@ app.post('/prompt', async (req: Request<{}, {}, ExecuteCommandRequest>, res: Res
             return res.status(400).json({ error: 'Directory is required' });
         }
 
-        const { stdout, stderr } = await execAsync(command, { cwd: directory });
+        const claudeCommand = `claude -p --dangerously-skip-permissions --output-format "stream-json" "${command}"`;
+        // const claudeCommand = command;
+
+        console.log(`Executing command: ${claudeCommand} in directory: ${directory}`);
+        
+        // Get the shell's environment by running env command
+        const { stdout: envOutput } = await execAsync('env', { shell: '/bin/zsh' });
+        const shellEnv = envOutput.split('\n').reduce((acc, line) => {
+            const [key, ...value] = line.split('=');
+            if (key && value.length) {
+                acc[key] = value.join('=');
+            }
+            return acc;
+        }, {} as Record<string, string>);
+
+        // @ts-ignore
+        const { stdout, stderr } = await execAsync(claudeCommand, { 
+            cwd: directory,
+            env: { ...process.env, ...shellEnv }
+        });
+        console.log('Command output:', { stdout, stderr });
         res.json({ 
             stdout,
             stderr,
             success: true
         });
     } catch (error) {
+        console.log(error);
         res.status(500).json({ 
             error: 'Failed to execute command',
             details: error instanceof Error ? error.message : 'Unknown error'
@@ -239,8 +260,6 @@ app.post("/promptstream", async (req: Request<{}, {}, ExecuteCommandRequest>, re
             shell: true // Use shell to handle commands better
         });
         
-        console.log(process);
-
         // Keep track of all outputs
         let allOutputs: string[] = [];
         
