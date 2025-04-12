@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useEffect } from "react";
+import { useRef, useEffect, useMemo } from "react";
 import { Canvas, useFrame } from "@react-three/fiber";
 import { OrbitControls } from "@react-three/drei";
 import { Physics, usePlane, useSphere } from "@react-three/cannon";
@@ -17,13 +17,15 @@ const getRandomColor = () => {
 };
 
 // Rotating dodecahedron component
-function Dodecahedron(props) {
-  const mesh = useRef();
+function Dodecahedron(props: any) {
+  const mesh = useRef<THREE.Mesh>(null);
 
-  useFrame(() => {
+  useFrame(({ clock }) => {
     if (mesh.current) {
-      mesh.current.rotation.x += 0.002;
-      mesh.current.rotation.y += 0.003;
+      const t = clock.getElapsedTime();
+      mesh.current.rotation.x = Math.sin(t * 0.3) * 0.2;
+      mesh.current.rotation.y = Math.sin(t * 0.2) * 0.5;
+      mesh.current.rotation.z = Math.sin(t * 0.1) * 0.1;
     }
   });
 
@@ -76,28 +78,20 @@ function DodecahedronBoundary() {
     [-phi, 0, -b],
   ].map((v) => v.map((coord) => coord * scale));
 
-  // Create faces (5 vertices per face for a dodecahedron)
+  // Create basic faces 
   const faces = [
     [0, 8, 4, 14, 12],
     [0, 12, 16, 17, 2],
-    [0, 2, 10, 8],
     [1, 9, 5, 15, 13],
     [1, 13, 17, 16, 3],
-    [1, 3, 11, 9],
     [2, 17, 13, 14, 10],
     [3, 16, 12, 15, 11],
     [4, 8, 10, 18, 19],
     [5, 9, 11, 19, 18],
     [6, 7, 19, 18, 14],
-    [6, 14, 15, 7],
     [4, 19, 7, 6, 5],
-    [4, 5, 15, 14],
     [6, 18, 10, 2, 3],
-    [6, 3, 7],
-    [7, 11, 19],
-    [8, 0, 4],
-    [9, 1, 5],
-    [13, 15, 12],
+    [0, 2, 10, 8, 4],    // Complete faces for proper physics
   ];
 
   return (
@@ -124,7 +118,7 @@ function DodecahedronBoundary() {
   );
 }
 
-function BoundaryPlane({ position, normal }) {
+function BoundaryPlane({ position, normal }: { position: number[], normal: THREE.Vector3 }) {
   usePlane(() => ({
     position,
     type: "Static",
@@ -136,32 +130,33 @@ function BoundaryPlane({ position, normal }) {
 }
 
 // Ball component with physics
-function Ball({ position, color }) {
+function Ball({ position, color }: { position: number[], color: THREE.Color }) {
   const [ref, api] = useSphere(() => ({
     mass: 1,
     position,
     args: [0.5],
-    linearDamping: 0.1,
-    restitution: 0.7, // Bounciness
+    linearDamping: 0.05,
+    restitution: 0.9, // Higher bounciness
   }));
 
   // Random initial velocity
   useEffect(() => {
+    // Set initial velocity
     api.velocity.set(
-      (Math.random() - 0.5) * 5,
-      (Math.random() - 0.5) * 5,
-      (Math.random() - 0.5) * 5,
+      (Math.random() - 0.5) * 8,
+      (Math.random() - 0.5) * 8,
+      (Math.random() - 0.5) * 8
     );
 
     // Apply small random forces periodically to keep balls moving
     const interval = setInterval(() => {
       api.applyForce(
         [
-          (Math.random() - 0.5) * 10,
-          (Math.random() - 0.5) * 10,
-          (Math.random() - 0.5) * 10,
+          (Math.random() - 0.5) * 15,
+          (Math.random() - 0.5) * 15,
+          (Math.random() - 0.5) * 15,
         ],
-        [0, 0, 0],
+        [0, 0, 0]
       );
     }, 2000);
 
@@ -170,33 +165,35 @@ function Ball({ position, color }) {
 
   return (
     <mesh ref={ref}>
-      <sphereGeometry args={[0.5, 32, 32]} />
-      <meshStandardMaterial color={color} />
+      <sphereGeometry args={[0.5, 12, 12]} />
+      <meshStandardMaterial color={color} roughness={0.4} metalness={0.3} />
     </mesh>
   );
 }
 
-// Generate 10 balls with random positions and colors
+// Generate 12 balls with random positions and colors
 function Balls() {
-  const colors = Array(10)
-    .fill()
-    .map(() => getRandomColor());
+  // Memoize positions and colors to prevent re-randomization on renders
+  const ballData = useMemo(() => {
+    return Array(12).fill(null).map(() => ({
+      position: [
+        (Math.random() - 0.5) * 3,
+        (Math.random() - 0.5) * 3,
+        (Math.random() - 0.5) * 3,
+      ] as [number, number, number],
+      color: getRandomColor()
+    }));
+  }, []);
 
   return (
     <>
-      {Array(10)
-        .fill()
-        .map((_, i) => (
-          <Ball
-            key={i}
-            position={[
-              (Math.random() - 0.5) * 3,
-              (Math.random() - 0.5) * 3,
-              (Math.random() - 0.5) * 3,
-            ]}
-            color={colors[i]}
-          />
-        ))}
+      {ballData.map((data, i) => (
+        <Ball
+          key={i}
+          position={data.position}
+          color={data.color}
+        />
+      ))}
     </>
   );
 }
@@ -208,9 +205,11 @@ export default function DodecahedronPage() {
         <ambientLight intensity={0.5} />
         <pointLight position={[10, 10, 10]} intensity={1} />
         <Physics
-          gravity={[0, -3, 0]}
+          gravity={[0, -5, 0]}
           iterations={20}
-          defaultContactMaterial={{ restitution: 0.7 }}
+          size={10}
+          allowSleep={true}
+          defaultContactMaterial={{ restitution: 0.9, friction: 0.1 }}
         >
           <Dodecahedron position={[0, 0, 0]} />
           <DodecahedronBoundary />
@@ -220,8 +219,9 @@ export default function DodecahedronPage() {
       </Canvas>
 
       <div className="absolute top-4 left-4 text-white">
-        <h1 className="mb-2 text-2xl font-bold">3D Dodecahedron</h1>
-        <p>A twelve-sided polygon with physics-based balls</p>
+        <h1 className="mb-2 text-2xl font-bold">3D Dodecahedron Physics</h1>
+        <p>A twelve-sided polyhedron with a dozen bouncy balls affected by gravity</p>
+        <p className="mt-2 text-xs">Drag to rotate the camera view</p>
       </div>
 
       <div className="absolute bottom-4 left-4">

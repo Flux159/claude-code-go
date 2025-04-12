@@ -39,7 +39,11 @@ export function Collapsible({ children, title }: PropsWithChildren & { title: st
 
           <ThemedText style={styles.title}>{title}</ThemedText>
         </View>
-        {isOpen && <ThemedView style={styles.content}>{children}</ThemedView>}
+        {isOpen ? (
+          <ThemedView style={styles.content}>{children}</ThemedView>
+        ) : (
+          <ThemedText style={styles.preview}>Click to expand</ThemedText>
+        )}
       </ThemedView>
     </TouchableOpacity>
   );
@@ -57,10 +61,20 @@ const styles = StyleSheet.create({
   },
   title: {
     fontSize: 14,
+    fontWeight: 'bold',
+    color: '#4a7cff',
+  },
+  preview: {
+    marginLeft: 18,
+    fontSize: 12,
+    fontStyle: 'italic',
+    opacity: 0.6,
+    marginTop: 2,
   },
   content: {
     marginTop: 6,
     marginLeft: 6,
     backgroundColor: 'transparent',
+    width: '100%',
   },
 });
