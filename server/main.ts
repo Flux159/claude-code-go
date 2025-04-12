@@ -1,6 +1,6 @@
 import express, { Request, Response } from 'express';
 import bodyParser from 'body-parser';
-import { exec } from 'child_process';
+import { exec, spawn } from 'child_process';
 import { promisify } from 'util';
 import fs from 'fs/promises';
 import path from 'path';
@@ -100,13 +100,70 @@ app.post("/promptstream", async (req: Request<{}, {}, ExecuteCommandRequest>, re
             return res.status(400).json({ error: 'Command is required' });
         }
 
-        // TODO: Change this to use a stream of outputs
-        const { stdout, stderr } = await execAsync(command);
-        res.json({ 
-            stdout,
-            stderr,
-            success: true
+        // Set headers for SSE
+        res.setHeader('Content-Type', 'text/event-stream');
+        res.setHeader('Cache-Control', 'no-cache');
+        res.setHeader('Connection', 'keep-alive');
+        
+        // Split the command into command and args
+        const parts = command.split(' ');
+        const cmd = parts[0];
+        const args = parts.slice(1);
+        
+        // Use spawn instead of exec for streaming output
+        const process = spawn(cmd, args);
+        
+        // Keep track of all outputs
+        let allOutputs: string[] = [];
+        
+        // Handle stdout data
+        process.stdout.on('data', (data) => {
+            const output = data.toString();
+            allOutputs.push(output);
+            
+            // Send the most recent output as an SSE event
+            res.write(`data: ${JSON.stringify({ 
+                stdout: output,
+                allOutputs,
+                success: true
+            })}\n\n`);
+            // @ts-ignore
+            res.flush();
         });
+        
+        // Handle stderr data
+        process.stderr.on('data', (data) => {
+            const error = data.toString();
+            allOutputs.push(error);
+            
+            // Send the error as an SSE event
+            res.write(`data: ${JSON.stringify({ 
+                stderr: error,
+                allOutputs,
+                success: true
+            })}\n\n`);
+            // @ts-ignore
+            res.flush();
+        });
+        
+        // Handle process completion
+        process.on('close', (code) => {
+            // Send final event with all outputs
+            res.write(`data: ${JSON.stringify({ 
+                stdout: '',
+                stderr: '',
+                allOutputs,
+                success: true,
+                exitCode: code
+            })}\n\n`);
+            res.end();
+        });
+        
+        // Handle client disconnect
+        req.on('close', () => {
+            process.kill();
+        });
+        
     } catch (error) {
         res.status(500).json({ 
             error: 'Failed to execute command',
