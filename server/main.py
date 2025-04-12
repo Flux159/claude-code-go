@@ -32,7 +32,7 @@ def get_directories():
 
         if relative:
             # Return the parent directory of the current repository
-            directory = str(Path(os.getcwd()))
+            directory = str(Path(os.getcwd())) + "/claude-next-app"
         else:
             # Return the user's home directory if explicitly asked for non-relative path
             directory = os.path.expanduser("~")
