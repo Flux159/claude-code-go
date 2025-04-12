@@ -65,29 +65,43 @@ export function ChatInput() {
 
     setIsResponseLoading(true);
 
-    // Format conversation history as plain text with User/Assistant prefixes
+    // Format conversation history as XML with user/assistant tags
     const conversationHistory = messages
       .map(message => {
-        // Extract only text content items
-        const textContent = message.content
-          .filter(item => item.type === 'text')
-          .map(item => item.text)
-          .join(' ');
+        // Skip empty messages
+        if (!message.content || message.content.length === 0) return null;
 
-        // Skip messages with no text content
-        if (!textContent) return null;
+        // Start the XML tag based on role
+        const roleTag = message.role === 'user' ? 'user' : 'assistant';
 
-        // Format as "User: ..." or "Assistant: ..."
-        const role = message.role.charAt(0).toUpperCase() + message.role.slice(1);
-        return `${role}: ${textContent}`;
+        const formattedContent = message.content.map(item => {
+          if (item.type === 'text') {
+            return item.text;
+          }
+          else if (item.type === 'tool_use') {
+            const formattedInput = typeof item.input === 'object'
+              ? JSON.stringify(item.input, null, 2)
+              : String(item.input || '');
+            return `<tool_call name="${item.name || ''}" id="${item.id || ''}">${formattedInput}</tool_call>`;
+          }
+          else if (item.type === 'tool_result') {
+            const formattedContent = typeof item.content === 'object'
+              ? JSON.stringify(item.content, null, 2)
+              : String(item.content || '');
+            return `<tool_result tool_use_id="${item.tool_use_id || ''}">${formattedContent}</tool_result>`;
+          }
+          return '';
+        }).join('\n');
+
+        // Return the complete XML-formatted message
+        return `<${roleTag}>${formattedContent}</${roleTag}>`;
       })
       .filter(Boolean) // Remove null entries
       .join('\n');
 
-    // Add the current message to the conversation history with User prefix
     const fullConversation = conversationHistory
-      ? `${conversationHistory}\nUser: ${text}`
-      : `User: ${text}`;
+      ? `<conversation>\n${conversationHistory}\n<user>${text}</user>\n</conversation>`
+      : `<conversation>\n<user>${text}</user>\n</conversation>`;
 
     const commandWithHistory = fullConversation;
 
