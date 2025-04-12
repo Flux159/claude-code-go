@@ -12,6 +12,7 @@ interface ListDirectoryRequest {
 
 interface ExecuteCommandRequest {
     command: string;
+    directory: string;
 }
 
 const app = express();
@@ -71,13 +72,17 @@ app.post('/directories', async (req: Request<{}, {}, ListDirectoryRequest>, res:
 // @ts-ignore
 app.post('/prompt', async (req: Request<{}, {}, ExecuteCommandRequest>, res: Response) => {
     try {
-        const { command } = req.body;
+        const { command, directory } = req.body;
         
         if (!command) {
             return res.status(400).json({ error: 'Command is required' });
         }
 
-        const { stdout, stderr } = await execAsync(command);
+        if (!directory) {
+            return res.status(400).json({ error: 'Directory is required' });
+        }
+
+        const { stdout, stderr } = await execAsync(command, { cwd: directory });
         res.json({ 
             stdout,
             stderr,
@@ -91,13 +96,24 @@ app.post('/prompt', async (req: Request<{}, {}, ExecuteCommandRequest>, res: Res
     }
 });
 
+// Serve the test HTML file
+app.get('/', (req: Request, res: Response) => {
+    res.sendFile(path.join(__dirname, 'test-sse.html'));
+});
+
 // @ts-ignore
-app.post("/promptstream", async (req: Request<{}, {}, ExecuteCommandRequest>, res: Response) => {
+app.get("/promptstream", async (req: Request, res: Response) => {
     try {
-        const { command } = req.body;
+        // Get command and directory from query parameters
+        const command = req.query.command as string;
+        const directory = req.query.directory as string;
         
         if (!command) {
             return res.status(400).json({ error: 'Command is required' });
+        }
+
+        if (!directory) {
+            return res.status(400).json({ error: 'Directory is required' });
         }
 
         // Set headers for SSE
@@ -105,13 +121,19 @@ app.post("/promptstream", async (req: Request<{}, {}, ExecuteCommandRequest>, re
         res.setHeader('Cache-Control', 'no-cache');
         res.setHeader('Connection', 'keep-alive');
         
-        // Split the command into command and args
-        const parts = command.split(' ');
-        const cmd = parts[0];
-        const args = parts.slice(1);
+        // Send an initial comment to establish the connection
+        res.write(': ping\n\n');
+        
+        // Construct the Claude command
+        const claudeCommand = `claude -p --dangerously-skip-permissions --output-format "stream-json" ${command}`;
+        
+        console.log(`Executing command: ${claudeCommand} in directory: ${directory}`);
         
         // Use spawn instead of exec for streaming output
-        const process = spawn(cmd, args);
+        const process = spawn(claudeCommand, { 
+            cwd: directory,
+            shell: true // Use shell to handle commands better
+        });
         
         // Keep track of all outputs
         let allOutputs: string[] = [];
@@ -127,8 +149,6 @@ app.post("/promptstream", async (req: Request<{}, {}, ExecuteCommandRequest>, re
                 allOutputs,
                 success: true
             })}\n\n`);
-            // @ts-ignore
-            res.flush();
         });
         
         // Handle stderr data
@@ -142,29 +162,151 @@ app.post("/promptstream", async (req: Request<{}, {}, ExecuteCommandRequest>, re
                 allOutputs,
                 success: true
             })}\n\n`);
-            // @ts-ignore
-            res.flush();
+        });
+        
+        // Handle process errors
+        process.on('error', (error) => {
+            console.error(`Process error: ${error.message}`);
+            res.write(`data: ${JSON.stringify({ 
+                stderr: `Process error: ${error.message}`,
+                allOutputs,
+                success: false,
+                error: error.message
+            })}\n\n`);
         });
         
         // Handle process completion
-        process.on('close', (code) => {
+        process.on('close', (code, signal) => {
+            console.log(`Process exited with code ${code} and signal ${signal}`);
+            
             // Send final event with all outputs
             res.write(`data: ${JSON.stringify({ 
                 stdout: '',
                 stderr: '',
                 allOutputs,
                 success: true,
-                exitCode: code
+                exitCode: code,
+                signal: signal
             })}\n\n`);
             res.end();
         });
         
         // Handle client disconnect
         req.on('close', () => {
+            console.log('Client disconnected, killing process');
             process.kill();
         });
         
     } catch (error) {
+        console.error('Error in promptstream:', error);
+        res.status(500).json({ 
+            error: 'Failed to execute command',
+            details: error instanceof Error ? error.message : 'Unknown error'
+        });
+    }
+});
+
+// @ts-ignore
+app.post("/promptstream", async (req: Request<{}, {}, ExecuteCommandRequest>, res: Response) => {
+    try {
+        // Get command from body
+        const { command, directory } = req.body;
+        
+        if (!command) {
+            return res.status(400).json({ error: 'Command is required' });
+        }
+
+        if (!directory) {
+            return res.status(400).json({ error: 'Directory is required' });
+        }
+
+        // Set headers for SSE
+        res.setHeader('Content-Type', 'text/event-stream');
+        res.setHeader('Cache-Control', 'no-cache');
+        res.setHeader('Connection', 'keep-alive');
+        
+        // Send an initial comment to establish the connection
+        res.write(': ping\n\n');
+        
+        // Construct the Claude command
+        const claudeCommand = `claude -p --dangerously-skip-permissions --output-format "stream-json" "${command}"`;
+        
+        console.log(`Executing command: ${claudeCommand} in directory: ${directory}`);
+        
+        // Use spawn instead of exec for streaming output
+        const process = spawn(claudeCommand, { 
+            cwd: directory,
+            shell: true // Use shell to handle commands better
+        });
+        
+        console.log(process);
+
+        // Keep track of all outputs
+        let allOutputs: string[] = [];
+        
+        // Handle stdout data
+        process.stdout.on('data', (data) => {
+            console.log(`stdout: ${data}`);
+            const output = data.toString();
+            allOutputs.push(output);
+            
+            // Send the most recent output as an SSE event
+            res.write(`data: ${JSON.stringify({ 
+                stdout: output,
+                allOutputs,
+                success: true
+            })}\n\n`);
+        });
+        
+        // Handle stderr data
+        process.stderr.on('data', (data) => {
+            console.log(`stderr: ${data}`);
+            const error = data.toString();
+            allOutputs.push(error);
+            
+            // Send the error as an SSE event
+            res.write(`data: ${JSON.stringify({ 
+                stderr: error,
+                allOutputs,
+                success: true
+            })}\n\n`);
+        });
+        
+        // Handle process errors
+        process.on('error', (error) => {
+            console.error(`Process error: ${error.message}`);
+            res.write(`data: ${JSON.stringify({ 
+                stderr: `Process error: ${error.message}`,
+                allOutputs,
+                success: false,
+                error: error.message
+            })}\n\n`);
+        });
+        
+        // Handle process completion
+        process.on('close', (code, signal) => {
+            console.log(`Process exited with code ${code} and signal ${signal}`);
+            
+            // Send final event with all outputs
+            res.write(`data: ${JSON.stringify({ 
+                stdout: '',
+                stderr: '',
+                allOutputs,
+                success: true,
+                exitCode: code,
+                signal: signal
+            })}\n\n`);
+            res.end();
+        });
+        
+        // Handle client disconnect
+        req.on('close', () => {
+            // console.log('Client disconnected, killing process');
+            // process.kill();
+        });
+        
+    } catch (error) {
+        console.error('Error in promptstream:', error);
         res.status(500).json({ 
             error: 'Failed to execute command',
             details: error instanceof Error ? error.message : 'Unknown error'
