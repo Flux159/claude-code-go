@@ -1,6 +1,6 @@
 import { useLocalSearchParams } from 'expo-router';
 import React, { useEffect, useState } from 'react';
-import { ActivityIndicator, StyleSheet, View } from 'react-native';
+import { ActivityIndicator, SafeAreaView, StyleSheet, View } from 'react-native';
 import { WebView } from 'react-native-webview';
 
 import { ThemedText } from '@/components/ThemedText';
@@ -38,43 +38,48 @@ export default function WebPreviewScreen() {
   };
 
   return (
-    <ThemedView style={styles.container}>
-      <ThemedView style={styles.urlBar}>
-        <ThemedText>{url}</ThemedText>
-      </ThemedView>
-
-      {error ? (
-        <ThemedView style={styles.errorContainer}>
-          <ThemedText style={styles.errorText}>{error}</ThemedText>
+    <SafeAreaView style={styles.safeArea}>
+      <ThemedView style={styles.container}>
+        <ThemedView style={styles.urlBar}>
+          <ThemedText>{url}</ThemedText>
         </ThemedView>
-      ) : (
-        <View style={styles.webViewContainer}>
-          <WebView
-            source={{ uri: url }}
-            style={[styles.webView, { backgroundColor }]}
-            onLoadStart={handleLoadStart}
-            onLoadEnd={handleLoadEnd}
-            onError={handleError}
-          />
-          {isLoading && (
-            <View style={styles.loadingContainer}>
-              <ActivityIndicator size="large" />
-            </View>
-          )}
-        </View>
-      )}
-    </ThemedView>
+
+        {error ? (
+          <ThemedView style={styles.errorContainer}>
+            <ThemedText style={styles.errorText}>{error}</ThemedText>
+          </ThemedView>
+        ) : (
+          <View style={styles.webViewContainer}>
+            <WebView
+              source={{ uri: url }}
+              style={[styles.webView, { backgroundColor }]}
+              onLoadStart={handleLoadStart}
+              onLoadEnd={handleLoadEnd}
+              onError={handleError}
+            />
+            {isLoading && (
+              <View style={styles.loadingContainer}>
+                <ActivityIndicator size="large" />
+              </View>
+            )}
+          </View>
+        )}
+      </ThemedView>
+    </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
+  safeArea: {
+    flex: 1,
+  },
   container: {
     flex: 1,
   },
   urlBar: {
     padding: 10,
-    borderBottomWidth: 1,
-    borderBottomColor: '#ccc',
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: '#cccccc80',
     alignItems: 'center',
   },
   webViewContainer: {

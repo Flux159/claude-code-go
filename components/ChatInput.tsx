@@ -58,29 +58,31 @@ export function ChatInput({ onSend }: ChatInputProps) {
     }
   };
 
+  const iconColor = useThemeColor({}, 'icon');
+
   return (
     <KeyboardAvoidingView
       behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-      keyboardVerticalOffset={100}
+      keyboardVerticalOffset={60}
     >
-      <View style={styles.container}>
+      <View style={[styles.container, { borderTopColor: '#cccccc80' }]}>
         <TextInput
           style={[
             styles.input,
             {
               backgroundColor,
               color: textColor,
-              borderColor: Platform.OS === 'ios' ? '#ccc' : 'transparent',
+              borderColor: Platform.OS === 'ios' ? '#cccccc80' : 'transparent',
+              borderWidth: StyleSheet.hairlineWidth,
             },
           ]}
           value={text}
           onChangeText={setText}
-          placeholder="Type a command..."
+          placeholder="Reply to Claude..."
           placeholderTextColor="#999"
-          multiline
+          multiline={false}
           returnKeyType="send"
           onSubmitEditing={handleSend}
-          blurOnSubmit={false}
         />
         <TouchableOpacity
           style={[styles.sendButton, { backgroundColor: tintColor }]}
@@ -100,11 +102,10 @@ const styles = StyleSheet.create({
     padding: 10,
     alignItems: 'center',
     borderTopWidth: StyleSheet.hairlineWidth,
-    borderTopColor: '#ccc',
+    borderTopColor: '#ccc', // Default color, will be overridden by inline style
   },
   input: {
     flex: 1,
-    borderWidth: 1,
     borderRadius: 20,
     padding: 10,
     paddingTop: 10,
