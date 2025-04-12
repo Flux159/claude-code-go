@@ -73,7 +73,9 @@ export default function ChatScreen() {
           data={filteredMessages}
           keyExtractor={(item) => item.id}
           renderItem={({ item }) => (
-            <ChatMessage message={item} toolResultsMap={toolResultsMap} />
+            <View style={styles.messageItem}>
+              <ChatMessage message={item} toolResultsMap={toolResultsMap} />
+            </View>
           )}
           ListFooterComponent={<LoadingIndicator />}
           contentContainerStyle={styles.messagesContainer}
@@ -108,15 +110,18 @@ const styles = StyleSheet.create({
     flexGrow: 1,
     padding: 16,
   },
+  messageItem: {
+    width: '100%',
+  },
   assistantContainer: {
     alignSelf: 'flex-start',
     alignItems: 'flex-start',
     marginVertical: 8,
-    maxWidth: '80%',
+    maxWidth: '90%',
   },
   bubble: {
     padding: 12,
-    borderRadius: 18,
+    borderRadius: 8,
     shadowColor: '#000',
     shadowOffset: {
       width: 0,
@@ -127,6 +132,6 @@ const styles = StyleSheet.create({
     elevation: 1,
   },
   assistantBubble: {
-    borderBottomLeftRadius: 4,
+    borderBottomLeftRadius: 2,
   },
 });
