@@ -4,8 +4,11 @@ import os
 import json
 from pathlib import Path
 import sys
-from typing import Dict, List, Union, Any
+from typing import Dict, List, Union, Any, Optional
 import time
+import signal
+import threading
+import psutil
 from collections import deque
 
 app = Flask(__name__)
@@ -15,11 +18,232 @@ app = Flask(__name__)
 MAX_STORED_ERRORS = 10
 recent_errors = deque(maxlen=MAX_STORED_ERRORS)
 
+# Web command process management
+web_process: Optional[subprocess.Popen] = None
+web_command_lock = threading.Lock()
+web_command_status = {
+    "running": False,
+    "command": "",
+    "pid": None,
+    "start_time": None,
+    "exit_code": None,
+    "output": [],
+    "error": None,
+    "last_error_line": None,
+    "logs": [],
+    "max_logs": 1000  # Maximum number of log lines to keep
+}
+
 
 def get_shell_env() -> Dict[str, str]:
     """Get the shell environment variables."""
     env_output = subprocess.check_output(["env"], shell=True).decode("utf-8")
     return dict(line.split("=", 1) for line in env_output.splitlines() if "=" in line)
+
+
+def output_reader(process, output_list, is_stderr=False):
+    """Read output from a process and append to the output list."""
+    global web_command_status
+    stream = process.stderr if is_stderr else process.stdout
+    prefix = "ERROR: " if is_stderr else ""
+    
+    for line in iter(stream.readline, ""):
+        if line:
+            timestamp = time.strftime("%Y-%m-%d %H:%M:%S")
+            line_text = f"{prefix}{line.rstrip()}"
+            log_entry = f"[{timestamp}] {line_text}"
+            
+            print(log_entry)
+            output_list.append(line_text)
+            
+            # Add to logs with timestamp for display in UI
+            with web_command_lock:
+                web_command_status["logs"].append(log_entry)
+                # Keep logs within the maximum size
+                if len(web_command_status["logs"]) > web_command_status["max_logs"]:
+                    web_command_status["logs"] = web_command_status["logs"][-web_command_status["max_logs"]:]
+                
+                # If this is an error, update the last error line
+                if is_stderr:
+                    web_command_status["last_error_line"] = log_entry
+
+
+def is_process_running(pid):
+    """Check if a process with the given PID is running."""
+    try:
+        if pid is None:
+            return False
+        process = psutil.Process(pid)
+        return process.is_running() and process.status() != psutil.STATUS_ZOMBIE
+    except (psutil.NoSuchProcess, psutil.AccessDenied, psutil.ZombieProcess):
+        return False
+
+
+def start_web_command(command, directory=None):
+    """Start the web command process."""
+    global web_process, web_command_status
+    
+    if directory is None:
+        directory = str(Path(os.getcwd())) + "/claude-next-app"
+    
+    with web_command_lock:
+        # Kill any existing process
+        if web_process is not None and is_process_running(web_command_status["pid"]):
+            try:
+                # Try to terminate gracefully first
+                web_process.terminate()
+                web_process.wait(timeout=5)
+            except subprocess.TimeoutExpired:
+                # Force kill if it doesn't terminate
+                web_process.kill()
+            except Exception as e:
+                print(f"Error terminating process: {e}")
+        
+        # Reset the status
+        timestamp = time.strftime("%Y-%m-%d %H:%M:%S")
+        start_time = time.time()
+        
+        web_command_status["running"] = False
+        web_command_status["command"] = command
+        web_command_status["pid"] = None
+        web_command_status["start_time"] = start_time
+        web_command_status["exit_code"] = None
+        web_command_status["output"] = []
+        web_command_status["error"] = None
+        web_command_status["last_error_line"] = None
+        
+        # Clear previous logs
+        web_command_status["logs"] = []
+        
+        # Add startup log
+        log_entry = f"[{timestamp}] Starting command: {command} in directory: {directory}"
+        web_command_status["logs"].append(log_entry)
+        print(log_entry)
+        
+        try:
+            # Start new process
+            shell_env = get_shell_env()
+            env = {**os.environ, **shell_env}
+            
+            web_process = subprocess.Popen(
+                command,
+                cwd=directory,
+                env=env,
+                shell=True,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
+                text=True,
+                bufsize=1,
+                universal_newlines=True,
+            )
+            
+            # Save process details
+            web_command_status["pid"] = web_process.pid
+            web_command_status["running"] = True
+            
+            # Start output reader threads
+            stdout_thread = threading.Thread(
+                target=output_reader,
+                args=(web_process, web_command_status["output"], False),
+                daemon=True
+            )
+            stderr_thread = threading.Thread(
+                target=output_reader,
+                args=(web_process, web_command_status["output"], True),
+                daemon=True
+            )
+            
+            stdout_thread.start()
+            stderr_thread.start()
+            
+            # Monitor process status
+            def monitor_process():
+                web_process.wait()
+                
+                timestamp = time.strftime("%Y-%m-%d %H:%M:%S")
+                exit_code = web_process.returncode
+                
+                with web_command_lock:
+                    web_command_status["running"] = False
+                    web_command_status["exit_code"] = exit_code
+                    
+                    # If the process failed, capture the error
+                    if exit_code != 0:
+                        error_msg = f"Process exited with code {exit_code}"
+                        web_command_status["error"] = error_msg
+                        
+                        # Add to logs
+                        log_entry = f"[{timestamp}] ERROR: {error_msg}"
+                        web_command_status["logs"].append(log_entry)
+                        web_command_status["last_error_line"] = log_entry
+                        
+                        print(f"Web command failed: {error_msg}")
+                    else:
+                        # Normal exit
+                        log_entry = f"[{timestamp}] Process completed normally with exit code 0"
+                        web_command_status["logs"].append(log_entry)
+                        print(log_entry)
+            
+            monitor_thread = threading.Thread(target=monitor_process, daemon=True)
+            monitor_thread.start()
+            
+            return True
+        except Exception as e:
+            web_command_status["error"] = str(e)
+            web_command_status["running"] = False
+            print(f"Failed to start web command: {e}")
+            return False
+
+
+def stop_web_command():
+    """Stop the web command process."""
+    global web_process, web_command_status
+    
+    with web_command_lock:
+        if web_process is None or not is_process_running(web_command_status["pid"]):
+            web_command_status["running"] = False
+            return True
+        
+        timestamp = time.strftime("%Y-%m-%d %H:%M:%S")
+        log_entry = f"[{timestamp}] Stopping command: {web_command_status['command']}"
+        web_command_status["logs"].append(log_entry)
+        print(log_entry)
+        
+        try:
+            # Try to terminate gracefully first
+            web_process.terminate()
+            try:
+                web_process.wait(timeout=5)
+            except subprocess.TimeoutExpired:
+                # Force kill if it doesn't terminate
+                timestamp = time.strftime("%Y-%m-%d %H:%M:%S")
+                log_entry = f"[{timestamp}] Process did not terminate gracefully, forcing kill"
+                web_command_status["logs"].append(log_entry)
+                print(log_entry)
+                
+                web_process.kill()
+                web_process.wait()
+            
+            web_command_status["running"] = False
+            web_command_status["exit_code"] = web_process.returncode
+            
+            timestamp = time.strftime("%Y-%m-%d %H:%M:%S")
+            log_entry = f"[{timestamp}] Command stopped with exit code: {web_command_status['exit_code']}"
+            web_command_status["logs"].append(log_entry)
+            print(log_entry)
+            
+            return True
+        except Exception as e:
+            error_msg = str(e)
+            web_command_status["error"] = error_msg
+            
+            timestamp = time.strftime("%Y-%m-%d %H:%M:%S")
+            log_entry = f"[{timestamp}] ERROR: Failed to stop command: {error_msg}"
+            web_command_status["logs"].append(log_entry)
+            web_command_status["last_error_line"] = log_entry
+            
+            print(f"Error stopping web command: {e}")
+            return False
 
 
 @app.route("/directories", methods=["GET"])
@@ -491,6 +715,168 @@ def git_reset():
             ),
             500,
         )
+
+
+@app.route("/web-command", methods=["GET"])
+def get_web_command_status():
+    """Get the status of the web command process."""
+    with web_command_lock:
+        # Check if the process is actually running, even if we think it is
+        if web_command_status["running"] and web_command_status["pid"]:
+            web_command_status["running"] = is_process_running(web_command_status["pid"])
+        
+        # Get log line limits from query params
+        max_logs = request.args.get("max_logs", default=100, type=int)
+        
+        # Return a status response (limit the output lines to avoid huge responses)
+        response = {
+            "running": web_command_status["running"],
+            "command": web_command_status["command"],
+            "pid": web_command_status["pid"],
+            "start_time": web_command_status["start_time"],
+            "exit_code": web_command_status["exit_code"],
+            "output": web_command_status["output"][-100:],  # Last 100 lines only
+            "error": web_command_status["error"],
+            "last_error_line": web_command_status["last_error_line"],
+            "output_lines": len(web_command_status["output"]),
+            "logs": web_command_status["logs"][-max_logs:],  # Return the requested number of logs
+            "total_logs": len(web_command_status["logs"])
+        }
+        
+    return jsonify(response)
+
+
+@app.route("/web-command/start", methods=["POST"])
+def start_web_command_endpoint():
+    """Start the web command process."""
+    try:
+        data = request.get_json()
+        command = data.get("command")
+        directory = data.get("directory")
+        
+        if not command:
+            return jsonify({"error": "Command is required"}), 400
+        
+        if not directory:
+            directory = str(Path(os.getcwd())) + "/claude-next-app"
+        
+        success = start_web_command(command, directory)
+        
+        return jsonify({
+            "success": success,
+            "message": "Web command started" if success else "Failed to start web command",
+            "error": web_command_status["error"]
+        })
+    except Exception as e:
+        return jsonify({"success": False, "error": str(e)}), 500
+
+
+@app.route("/web-command/stop", methods=["POST"])
+def stop_web_command_endpoint():
+    """Stop the web command process."""
+    try:
+        success = stop_web_command()
+        
+        return jsonify({
+            "success": success,
+            "message": "Web command stopped" if success else "Failed to stop web command",
+            "error": web_command_status["error"]
+        })
+    except Exception as e:
+        return jsonify({"success": False, "error": str(e)}), 500
+
+
+@app.route("/web-command/restart", methods=["POST"])
+def restart_web_command_endpoint():
+    """Restart the web command process."""
+    try:
+        data = request.get_json()
+        command = data.get("command") or web_command_status["command"]
+        directory = data.get("directory")
+        
+        if not command:
+            return jsonify({"error": "No command found to restart"}), 400
+        
+        # Add restart log entry
+        timestamp = time.strftime("%Y-%m-%d %H:%M:%S")
+        log_entry = f"[{timestamp}] Restarting command: {command}"
+        
+        with web_command_lock:
+            # Clear logs immediately for restart
+            web_command_status["logs"] = []
+            web_command_status["logs"].append(log_entry)
+            print(log_entry)
+        
+        # Stop the existing process
+        stop_web_command()
+        
+        # Start the new process
+        success = start_web_command(command, directory)
+        
+        return jsonify({
+            "success": success,
+            "message": "Web command restarted" if success else "Failed to restart web command",
+            "error": web_command_status["error"]
+        })
+    except Exception as e:
+        return jsonify({"success": False, "error": str(e)}), 500
+
+
+@app.route("/web-command/output", methods=["GET"])
+def get_web_command_output():
+    """Get the output of the web command process."""
+    try:
+        # Get optional query parameters for pagination
+        start_line = request.args.get("start", type=int, default=0)
+        max_lines = request.args.get("max", type=int, default=100)
+        
+        with web_command_lock:
+            total_lines = len(web_command_status["output"])
+            start_idx = max(0, min(start_line, total_lines))
+            end_idx = min(start_idx + max_lines, total_lines)
+            
+            output_slice = web_command_status["output"][start_idx:end_idx]
+            
+            response = {
+                "total_lines": total_lines,
+                "start_line": start_idx,
+                "end_line": end_idx,
+                "lines": output_slice,
+                "running": web_command_status["running"]
+            }
+            
+        return jsonify(response)
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+
+@app.route("/web-command/logs", methods=["GET"])
+def get_web_command_logs():
+    """Get the logs of the web command process."""
+    try:
+        # Get optional query parameters for pagination
+        start_line = request.args.get("start", type=int, default=0)
+        max_lines = request.args.get("max", type=int, default=100)
+        
+        with web_command_lock:
+            total_lines = len(web_command_status["logs"])
+            start_idx = max(0, min(start_line, total_lines))
+            end_idx = min(start_idx + max_lines, total_lines)
+            
+            logs_slice = web_command_status["logs"][start_idx:end_idx]
+            
+            response = {
+                "total_lines": total_lines,
+                "start_line": start_idx,
+                "end_line": end_idx,
+                "logs": logs_slice,
+                "running": web_command_status["running"],
+                "last_error_line": web_command_status["last_error_line"]
+            }
+            
+        return jsonify(response)
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
 
 
 if __name__ == "__main__":
