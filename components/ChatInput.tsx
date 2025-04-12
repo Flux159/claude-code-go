@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   KeyboardAvoidingView,
   Platform,
@@ -6,6 +6,7 @@ import {
   TextInput,
   TouchableOpacity,
   View,
+  Text,
 } from 'react-native';
 
 import { Constants } from '@/constants/Constants';
@@ -15,10 +16,40 @@ import { IconSymbol } from './ui/IconSymbol';
 
 export function ChatInput() {
   const [text, setText] = useState('');
+  const [pendingErrors, setPendingErrors] = useState(0);
   const { hostname, messages, addMessage, setIsResponseLoading } = useAppContext();
   const backgroundColor = useThemeColor({}, 'background');
   const textColor = useThemeColor({}, 'text');
   const tintColor = useThemeColor({}, 'tint');
+  const errorColor = '#ff6b6b'; // Red color for error indicator
+  
+  // Periodically check for pending errors
+  useEffect(() => {
+    // Initial check
+    checkForErrors();
+    
+    // Set up interval to check every 5 seconds
+    const intervalId = setInterval(checkForErrors, 5000);
+    
+    // Clean up on unmount
+    return () => clearInterval(intervalId);
+  }, [hostname]);
+  
+  // Function to check for pending errors
+  const checkForErrors = async () => {
+    try {
+      const response = await fetch(`http://${hostname}:${Constants.serverPort}/errors`, {
+        method: 'GET',
+      });
+      
+      if (response.ok) {
+        const data = await response.json();
+        setPendingErrors(data.count || 0);
+      }
+    } catch (error) {
+      console.error('Error checking for pending errors:', error);
+    }
+  };
 
   const parseJsonResponses = (responseText: string) => {
     try {
@@ -58,10 +89,21 @@ export function ChatInput() {
   };
 
   const handleSend = async () => {
-    if (!text.trim()) return;
-
-    addMessage(text, 'user');
-    setText('');
+    // Allow sending even with empty text if there are errors to report
+    if (!text.trim() && pendingErrors === 0) return;
+    
+    // If there's text, add it as a user message
+    if (text.trim()) {
+      addMessage(text, 'user');
+      setText('');
+    } else if (pendingErrors > 0) {
+      // If no text but errors exist, add a placeholder message
+      addMessage("Please analyze the errors", 'user');
+    }
+    
+    // Reset pending errors (they'll be included in this prompt)
+    // The server will clear them after including them in the prompt
+    setPendingErrors(0);
 
     setIsResponseLoading(true);
 
@@ -166,28 +208,46 @@ export function ChatInput() {
       keyboardVerticalOffset={96}
     >
       <View style={[styles.container, { borderTopColor: '#cccccc80' }]}>
-        <TextInput
-          style={[
-            styles.input,
-            {
-              backgroundColor,
-              color: textColor,
-              borderColor: Platform.OS === 'ios' ? '#cccccc80' : 'transparent',
-              borderWidth: StyleSheet.hairlineWidth,
-            },
-          ]}
-          value={text}
-          onChangeText={setText}
-          placeholder="Reply to Claude..."
-          placeholderTextColor="#999"
-          multiline={false}
-          returnKeyType="send"
-          onSubmitEditing={handleSend}
-        />
+        <View style={styles.inputContainer}>
+          <TextInput
+            style={[
+              styles.input,
+              {
+                backgroundColor,
+                color: textColor,
+                borderColor: Platform.OS === 'ios' ? '#cccccc80' : 'transparent',
+                borderWidth: StyleSheet.hairlineWidth,
+              },
+            ]}
+            value={text}
+            onChangeText={setText}
+            placeholder={pendingErrors > 0 
+              ? `Reply to Claude (includes ${pendingErrors} error${pendingErrors > 1 ? 's' : ''})`
+              : "Reply to Claude..."}
+            placeholderTextColor={pendingErrors > 0 ? errorColor : "#999"}
+            multiline={false}
+            returnKeyType="send"
+            onSubmitEditing={handleSend}
+          />
+          
+          {pendingErrors > 0 && (
+            <View style={[styles.errorBadge, { backgroundColor: errorColor }]}>
+              <Text style={styles.errorBadgeText}>{pendingErrors}</Text>
+            </View>
+          )}
+        </View>
+        
         <TouchableOpacity
-          style={[styles.sendButton, { backgroundColor: tintColor }]}
+          style={[
+            styles.sendButton, 
+            { 
+              backgroundColor: tintColor,
+              // Slightly dim the button if no text and only errors
+              opacity: !text.trim() && pendingErrors > 0 ? 0.8 : 1
+            }
+          ]}
           onPress={handleSend}
-          disabled={!text.trim()}
+          disabled={!text.trim() && pendingErrors === 0} // Enable if there's text OR errors
           hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
         >
           <IconSymbol name="arrow.up" size={20} color="white" />
@@ -205,13 +265,35 @@ const styles = StyleSheet.create({
     borderTopWidth: StyleSheet.hairlineWidth,
     borderTopColor: '#ccc', // Default color, will be overridden by inline style
   },
+  inputContainer: {
+    flex: 1,
+    position: 'relative',
+    marginRight: 10,
+  },
   input: {
     flex: 1,
     borderRadius: 20,
     paddingVertical: 10,
     paddingHorizontal: 16,
     maxHeight: 100,
-    marginRight: 10,
+    width: '100%',
+    paddingRight: 40, // Make room for the error badge
+  },
+  errorBadge: {
+    position: 'absolute',
+    right: 8,
+    top: '50%',
+    marginTop: -10,
+    width: 20,
+    height: 20,
+    borderRadius: 10,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  errorBadgeText: {
+    color: 'white',
+    fontSize: 12,
+    fontWeight: 'bold',
   },
   sendButton: {
     width: 40,

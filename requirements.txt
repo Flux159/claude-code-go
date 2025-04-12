@@ -1,1 +1,2 @@
-flask==3.0.2 
+flask==3.0.2
+watchdog==3.0.0  # Improves hot reloading

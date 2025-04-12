@@ -129,7 +129,13 @@ export function AppProvider({ children }: AppProviderProps) {
   };
 
   const clearMessages = () => {
-    setMessages([]);
+    const newChatMessage: Message = {
+      id: `${Date.now()}-${Math.random().toString(36).substring(2, 9)}`,
+      role: 'system',
+      content: [{ type: 'text', text: 'New conversation started.' }],
+      timestamp: new Date()
+    };
+    setMessages([newChatMessage]);
   };
 
   const value = {

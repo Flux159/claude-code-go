@@ -17,6 +17,9 @@ const MAPPING = {
   'globe': 'public',
   'gearshape': 'settings',
   'arrow.up': 'arrow-upward',
+  'plus.square': 'add',
+  'arrow.clockwise': 'refresh',
+  'house': 'home',
 } as Partial<
   Record<
     import('expo-symbols').SymbolViewProps['name'],

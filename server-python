@@ -27,6 +27,17 @@ if [ -f "requirements.txt" ]; then
     pip install -r requirements.txt
 fi
 
-# Run the Python server
-echo "Starting Python server..."
-python server/main.py 
+# Run the Python server with hot reloading enabled
+echo "Starting Python server with hot reloading..."
+
+# Flask specific environment variables
+export FLASK_APP=server/main.py
+export FLASK_ENV=development
+export FLASK_DEBUG=1
+
+# Make sure watchdog is installed for better hot reload performance
+pip install watchdog > /dev/null 2>&1
+
+# Run the server with the Python from the virtual environment
+# Use python3 explicitly to ensure compatibility
+python3 server/main.py
