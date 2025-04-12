@@ -21,6 +21,8 @@ export interface Message {
   timestamp: Date;
 }
 
+export type ThemePreference = 'light' | 'dark' | 'auto';
+
 interface AppContextType {
   hostname: string;
   setHostname: (hostname: string) => void;
@@ -36,9 +38,11 @@ interface AppContextType {
   isTogglingCollapsible: boolean;
   setIsTogglingCollapsible: (isToggling: boolean) => void;
   pendingErrorCount: number;
-  setPendingErrorCount?: (count: number) => void; // Added the missing property
+  setPendingErrorCount?: (count: number) => void;
   updatePendingErrorCount: () => Promise<number>;
   clearPendingErrors: () => Promise<void>;
+  themePreference: ThemePreference;
+  setThemePreference: (theme: ThemePreference) => void;
 }
 
 const defaultContext: AppContextType = {
@@ -59,6 +63,8 @@ const defaultContext: AppContextType = {
   setPendingErrorCount: () => { },
   updatePendingErrorCount: async () => 0,
   clearPendingErrors: async () => {},
+  themePreference: 'auto',
+  setThemePreference: () => { },
 };
 
 const AppContext = createContext<AppContextType>(defaultContext);
@@ -73,6 +79,7 @@ interface AppProviderProps {
 
 const HOSTNAME_STORAGE_KEY = 'app_hostname';
 const PORT_STORAGE_KEY = 'app_port';
+const THEME_PREFERENCE_KEY = 'app_theme_preference';
 
 export function AppProvider({ children }: AppProviderProps) {
   const [hostname, setHostname] = useState('suyogs-macbook-pro.local');
@@ -83,8 +90,9 @@ export function AppProvider({ children }: AppProviderProps) {
   const [settingsVisible, setSettingsVisible] = useState(false);
   const [isTogglingCollapsible, setIsTogglingCollapsible] = useState(false);
   const [pendingErrorCount, setPendingErrorCount] = useState(0);
+  const [themePreference, setThemePreferenceState] = useState<ThemePreference>('auto');
 
-  // Load saved hostname and port when app starts
+  // Load saved settings when app starts
   useEffect(() => {
     const loadSavedSettings = async () => {
       try {
@@ -96,6 +104,11 @@ export function AppProvider({ children }: AppProviderProps) {
         const savedPort = await AsyncStorage.getItem(PORT_STORAGE_KEY);
         if (savedPort) {
           setPort(parseInt(savedPort, 10));
+        }
+        
+        const savedTheme = await AsyncStorage.getItem(THEME_PREFERENCE_KEY);
+        if (savedTheme && (savedTheme === 'light' || savedTheme === 'dark' || savedTheme === 'auto')) {
+          setThemePreferenceState(savedTheme as ThemePreference);
         }
       } catch (error) {
         console.error('Failed to load settings:', error);
@@ -281,6 +294,16 @@ export function AppProvider({ children }: AppProviderProps) {
     return () => clearInterval(intervalId);
   }, [hostname]);
 
+  // Custom setter for theme preference that also saves to AsyncStorage
+  const updateThemePreference = async (newTheme: ThemePreference) => {
+    try {
+      await AsyncStorage.setItem(THEME_PREFERENCE_KEY, newTheme);
+      setThemePreferenceState(newTheme);
+    } catch (error) {
+      console.error('Failed to save theme preference:', error);
+    }
+  };
+
   const value = {
     hostname,
     setHostname: updateHostname,
@@ -299,6 +322,8 @@ export function AppProvider({ children }: AppProviderProps) {
     setPendingErrorCount,
     updatePendingErrorCount,
     clearPendingErrors,
+    themePreference,
+    setThemePreference: updateThemePreference,
   };
 
   // Show a loading screen or return null while loading

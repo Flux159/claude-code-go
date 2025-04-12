@@ -6,12 +6,14 @@ import { HapticTab } from '@/components/HapticTab';
 import { IconSymbol } from '@/components/ui/IconSymbol';
 import TabBarBackground from '@/components/ui/TabBarBackground';
 import { Colors } from '@/constants/Colors';
-import { useAppContext } from '@/contexts/AppContext';
+import { ThemePreference, useAppContext } from '@/contexts/AppContext';
 import { useColorScheme } from '@/hooks/useColorScheme';
+import { useThemeColor } from '@/hooks/useThemeColor';
 
 declare global {
   var webViewRef: any;
 }
+
 
 export default function TabLayout() {
   const colorScheme = useColorScheme();
@@ -43,21 +45,35 @@ export default function TabLayout() {
         headerShown: true,
         tabBarButton: HapticTab,
         tabBarBackground: TabBarBackground,
-        tabBarStyle: {},
+        tabBarStyle: {
+          backgroundColor: Colors[colorScheme ?? 'light'].background,
+          borderTopColor: colorScheme === 'dark' ? '#333' : '#ddd',
+        },
+        headerStyle: {
+          backgroundColor: Colors[colorScheme ?? 'light'].background,
+          shadowColor: colorScheme === 'dark' ? '#000' : undefined,
+          borderBottomColor: colorScheme === 'dark' ? '#333' : undefined,
+          borderBottomWidth: colorScheme === 'dark' ? StyleSheet.hairlineWidth : undefined,
+          shadowOpacity: colorScheme === 'dark' ? 0.3 : undefined,
+        },
+        headerTintColor: Colors[colorScheme ?? 'light'].text,
       }}>
       <Tabs.Screen
         name="index"
         options={{
-          headerTitle: () => (
-            <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-              <Text style={{ fontSize: 18, fontWeight: 'bold' }}>Claude Go</Text>
-              {pendingErrorCount > 0 && (
-                <View style={[styles.errorBadge, { position: 'relative', marginLeft: 8, top: 0, right: 0 }]}>
-                  <Text style={styles.errorText}>{pendingErrorCount}</Text>
-                </View>
-              )}
-            </View>
-          ),
+          headerTitle: () => {
+            const textColor = Colors[colorScheme ?? 'light'].text;
+            return (
+              <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                <Text style={{ fontSize: 18, fontWeight: 'bold', color: textColor }}>Claude Go</Text>
+                {pendingErrorCount > 0 && (
+                  <View style={[styles.errorBadge, { position: 'relative', marginLeft: 8, top: 0, right: 0 }]}>
+                    <Text style={styles.errorText}>{pendingErrorCount}</Text>
+                  </View>
+                )}
+              </View>
+            );
+          },
           tabBarLabel: 'Chat',
           tabBarIcon: ({ color }) => (
             <View>

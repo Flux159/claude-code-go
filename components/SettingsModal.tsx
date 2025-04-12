@@ -9,7 +9,9 @@ import {
   View,
 } from 'react-native';
 
-import { useAppContext } from '@/contexts/AppContext';
+import { IconSymbol } from '@/components/ui/IconSymbol';
+import { ThemePreference, useAppContext } from '@/contexts/AppContext';
+import { useColorScheme } from '@/hooks/useColorScheme';
 import { useThemeColor } from '@/hooks/useThemeColor';
 import { ThemedText } from './ThemedText';
 import { ThemedView } from './ThemedView';
@@ -17,6 +19,73 @@ import { ThemedView } from './ThemedView';
 interface SettingsModalProps {
   visible: boolean;
   onClose: () => void;
+}
+
+// Theme selector component for settings modal
+function ThemeSelector() {
+  const { themePreference, setThemePreference } = useAppContext();
+  const colorScheme = useColorScheme();
+  const tintColor = useThemeColor({}, 'tint');
+  
+  // Get appropriate icon and active status for each theme option
+  const getThemeOption = (theme: ThemePreference) => {
+    let iconName: any;
+    let label: string;
+    let isActive: boolean;
+    
+    switch(theme) {
+      case 'light':
+        iconName = 'sun.max.fill';
+        label = 'Light';
+        isActive = themePreference === 'light';
+        break;
+      case 'dark':
+        iconName = 'moon.fill';
+        label = 'Dark';
+        isActive = themePreference === 'dark';
+        break;
+      case 'auto':
+        iconName = 'circle.bottomhalf.filled';
+        label = 'Auto';
+        isActive = themePreference === 'auto';
+        break;
+    }
+    
+    return { iconName, label, isActive };
+  };
+
+  return (
+    <View style={styles.themeSection}>
+      <ThemedText style={styles.themeSectionTitle}>Theme</ThemedText>
+      <View style={styles.themeOptions}>
+        {(['light', 'dark', 'auto'] as ThemePreference[]).map(theme => {
+          const { iconName, label, isActive } = getThemeOption(theme);
+          return (
+            <TouchableOpacity
+              key={theme}
+              style={[
+                styles.themeButton,
+                isActive && styles.activeThemeButton
+              ]}
+              onPress={() => setThemePreference(theme)}
+            >
+              <IconSymbol
+                name={iconName}
+                size={24}
+                color={isActive ? tintColor : '#999'}
+              />
+              <ThemedText style={[
+                styles.themeButtonLabel,
+                isActive && {color: tintColor}
+              ]}>
+                {label}
+              </ThemedText>
+            </TouchableOpacity>
+          );
+        })}
+      </View>
+    </View>
+  );
 }
 
 export function SettingsModal({ visible, onClose }: SettingsModalProps) {
@@ -110,6 +179,9 @@ export function SettingsModal({ visible, onClose }: SettingsModalProps) {
             />
             {portError ? <ThemedText style={styles.errorText}>{portError}</ThemedText> : null}
           </View>
+          
+          {/* Theme selector */}
+          <ThemeSelector />
 
           <View style={styles.buttonContainer}>
             <TouchableOpacity style={styles.button} onPress={onClose}>
@@ -136,7 +208,7 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(0, 0, 0, 0.5)',
   },
   modalView: {
-    width: '80%',
+    width: '85%',
     borderRadius: 10,
     padding: 20,
     shadowColor: '#000',
@@ -161,10 +233,38 @@ const styles = StyleSheet.create({
     padding: 10,
     borderRadius: 5,
   },
+  // Theme selector styles
+  themeSection: {
+    marginBottom: 20,
+  },
+  themeSectionTitle: {
+    marginBottom: 12,
+  },
+  themeOptions: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+  },
+  themeButton: {
+    flex: 1,
+    alignItems: 'center',
+    padding: 10,
+    borderRadius: 8,
+  },
+  activeThemeButton: {
+    backgroundColor: 'rgba(200, 200, 200, 0.2)',
+    borderWidth: 1,
+    borderColor: 'rgba(150, 150, 150, 0.2)',
+  },
+  themeButtonLabel: {
+    marginTop: 6,
+    fontSize: 12,
+  },
+  // Button container styles
   buttonContainer: {
     flexDirection: 'row',
     justifyContent: 'center',
     gap: 12,
+    marginTop: 10,
   },
   button: {
     flex: 1,

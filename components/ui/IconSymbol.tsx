@@ -20,6 +20,10 @@ const MAPPING = {
   'plus.square': 'add',
   'arrow.clockwise': 'refresh',
   'house': 'home',
+  'sun.max.fill': 'wb_sunny',
+  'moon.fill': 'nightlight_round',
+  'circle.bottomhalf.filled': 'brightness_auto',
+  'face.smiling': 'emoji_emotions',
 } as Partial<
   Record<
     import('expo-symbols').SymbolViewProps['name'],
