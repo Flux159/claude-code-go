@@ -16,6 +16,9 @@ export const Colors = {
     tabIconSelected: tintColorLight,
     assistantBubble: '#F1F3F5',
     userBubble: '#007AFF',
+    codeBlock: '#f5f5f5',
+    codeBorder: '#e0e0e0',
+    divider: '#cccccc80',
   },
   dark: {
     text: '#ECEDEE',
@@ -26,5 +29,8 @@ export const Colors = {
     tabIconSelected: tintColorDark,
     assistantBubble: '#2C2F31',
     userBubble: '#007AFF',
+    codeBlock: '#1e1e1e',
+    codeBorder: '#333',
+    divider: '#666666',
   },
 };

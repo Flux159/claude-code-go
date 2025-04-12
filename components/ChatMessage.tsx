@@ -3,6 +3,7 @@ import { Platform, StyleSheet, View } from 'react-native';
 
 import { Collapsible } from '@/components/Collapsible';
 import { Message } from '@/contexts/AppContext';
+import { useColorScheme } from '@/hooks/useColorScheme';
 import { useThemeColor } from '@/hooks/useThemeColor';
 import { ThemedText } from './ThemedText';
 import { ThemedView } from './ThemedView';
@@ -67,6 +68,54 @@ const formatCompactText = (text: string): string => {
   return text;
 };
 
+// Formats diff output with color highlighting
+const formatDiff = (text: string): JSX.Element => {
+  if (!text) return <></>;
+  
+  const lines = text.split('\n');
+  
+  // Create elements for each line with appropriate styling
+  const elements = lines.map((line, index) => {
+    if (line.startsWith('+') && !line.startsWith('+++')){
+      // Added line - green
+      return <ThemedText key={index} style={{color: '#4CAF50', fontFamily: Platform.OS === 'ios' ? 'Menlo' : 'monospace'}}>{line}</ThemedText>;
+    } else if (line.startsWith('-') && !line.startsWith('---')) {
+      // Removed line - red
+      return <ThemedText key={index} style={{color: '#F44336', fontFamily: Platform.OS === 'ios' ? 'Menlo' : 'monospace'}}>{line}</ThemedText>;
+    } else {
+      // Context line - normal
+      return <ThemedText key={index} style={{fontFamily: Platform.OS === 'ios' ? 'Menlo' : 'monospace'}}>{line}</ThemedText>;
+    }
+  });
+  
+  // Join elements with line breaks
+  return (
+    <>
+      {elements.map((element, index) => (
+        <React.Fragment key={`line-${index}`}>
+          {element}
+          {index < elements.length - 1 && '\n'}
+        </React.Fragment>
+      ))}
+    </>
+  );
+};
+
+// Checks if text looks like a diff output
+const isDiffOutput = (text: string): boolean => {
+  if (!text) return false;
+  
+  // Simple heuristic: check if content has lines starting with + or - and contains @@ markers
+  const lines = text.split('\n');
+  const hasDiffMarkers = lines.some(line => 
+    (line.startsWith('+') && !line.startsWith('+++')) || 
+    (line.startsWith('-') && !line.startsWith('---'))
+  );
+  const hasHunkHeaders = text.includes('@@ ');
+  
+  return hasDiffMarkers && hasHunkHeaders;
+};
+
 interface ChatMessageProps {
   message: Message;
   toolResultsMap?: Record<string, any>;
@@ -96,7 +145,33 @@ export const LoadingDots = () => {
     "Musing",
     "Synthesizing",
     "Deducing",
-    "Prognosticating"
+    "Prognosticating",
+    "Reasoning",
+    "Simulating",
+    "Extrapolating",
+    "Theorizing",
+    "Comprehending",
+    "Scrutinizing",
+    "Deciphering",
+    "Formulating",
+    "Hypothesizing",
+    "Inferring",
+    "Puzzling",
+    "Studying",
+    "Estimating",
+    "Correlating",
+    "Visualizing",
+    "Conceptualizing",
+    "Associating",
+    "Reckoning",
+    "Discerning",
+    "Exploring",
+    "Connecting",
+    "Generating",
+    "Integrating",
+    "Systemizing",
+    "Unraveling",
+    "Assessing"
   ];
   
   const waitingEmojis = [
@@ -105,7 +180,14 @@ export const LoadingDots = () => {
     "🚀", "🌟", "🧿", "🦢", "🔥", "🧪", "🧮", "🦾", 
     "🌌", "🧲", "🦚", "🦄", "🐙", "🧸", "🪐", "🎲",
     "🎭", "🐢", "🦇", "🦋", "🦜", "🦁", "🎨", "🎧",
-    "🧫", "🔆", "🛸", "🎪", "🦔", "🌈", "🐿️", "☄️"
+    "🧫", "🔆", "🛸", "🎪", "🦔", "🌈", "🐿️", "☄️",
+    "🌋", "✨", "🔬", "🌊", "🍄", "🌻", "🦝", "🐸",
+    "🕰️", "🔭", "🤖", "👽", "🧙", "🧝", "🧞", "🦖",
+    "🐌", "🕸️", "🦒", "🐬", "🦩", "🦊", "🦡", "🦫",
+    "🐳", "🦦", "🦥", "🦢", "🦗", "🦎", "🐝", "🦅",
+    "🪶", "🪵", "🦂", "🕳️", "🎓", "🎡", "🧩", "🎠",
+    "🧵", "🎁", "📚", "💡", "🥽", "⚗️", "🧿", "🧶",
+    "🔧", "⌛", "📝", "🏺", "🧨", "🌠", "💫", "🍀"
   ];
   
   const [currentWordIndex, setCurrentWordIndex] = useState(
@@ -153,6 +235,12 @@ export function ChatMessage({ message, toolResultsMap = {} }: ChatMessageProps) 
   const userBubbleColor = useThemeColor({}, 'userBubble');
   const assistantBubbleColor = useThemeColor({}, 'assistantBubble');
   const systemBubbleColor = useThemeColor({}, 'background');
+  const colorScheme = useColorScheme();
+  
+  // Get theme colors for code blocks
+  const codeBlockBg = useThemeColor({}, 'codeBlock');
+  const codeBorderColor = useThemeColor({}, 'codeBorder');
+  const dividerColor = useThemeColor({}, 'divider');
 
   // Format the timestamp
   const formattedTime = message.timestamp.toLocaleTimeString([], {
@@ -234,9 +322,15 @@ export function ChatMessage({ message, toolResultsMap = {} }: ChatMessageProps) 
         case 'tool_combined':
           return (
             <Collapsible key={item.key} title={item.name || 'Tool'}>
-              {/* Input section */}
-              {/* Input section - compact */}
-              <View style={styles.codeBlock}>
+              {/* Input section - compact with height limit */}
+              <View style={[
+                styles.codeBlock,
+                styles.inputCodeBlock,
+                { 
+                  backgroundColor: codeBlockBg,
+                  borderColor: codeBorderColor
+                }
+              ]}>
                 <ThemedText selectable={true} style={[styles.toolResult, styles.scrollableText]}>
                   <ThemedText style={styles.toolHeader}>Input:</ThemedText>{'\n'}
                   {typeof item.input === 'object'
@@ -246,16 +340,30 @@ export function ChatMessage({ message, toolResultsMap = {} }: ChatMessageProps) 
               </View>
 
               {/* Divider */}
-              <View style={styles.divider} />
+              <View style={[styles.divider, { backgroundColor: dividerColor }]} />
 
-              {/* Result section - compact */}
-              <View style={styles.codeBlock}>
-                <ThemedText selectable={true} style={[styles.toolResult, styles.scrollableText]}>
-                  <ThemedText style={styles.toolHeader}>Result:</ThemedText>{'\n'}
-                  {typeof item.result === 'object'
-                    ? formatCompactJSON(item.result)
-                    : formatCompactText(String(item.result || ''))}
-                </ThemedText>
+              {/* Result section - compact with diff highlighting */}
+              <View style={[
+                styles.codeBlock, 
+                { 
+                  backgroundColor: codeBlockBg,
+                  borderColor: codeBorderColor
+                }
+              ]}>
+                <ThemedText style={styles.toolHeader}>Result:</ThemedText>
+                {typeof item.result === 'object' ? (
+                  <ThemedText selectable={true} style={[styles.toolResult, styles.scrollableText]}>
+                    {formatCompactJSON(item.result)}
+                  </ThemedText>
+                ) : isDiffOutput(String(item.result || '')) ? (
+                  <View style={styles.scrollableText}>
+                    {formatDiff(String(item.result || ''))}
+                  </View>
+                ) : (
+                  <ThemedText selectable={true} style={[styles.toolResult, styles.scrollableText]}>
+                    {formatCompactText(String(item.result || ''))}
+                  </ThemedText>
+                )}
               </View>
             </Collapsible>
           );
@@ -263,7 +371,14 @@ export function ChatMessage({ message, toolResultsMap = {} }: ChatMessageProps) 
         case 'tool_call':
           return (
             <Collapsible key={item.key} title={item.name || 'Tool Call'}>
-              <View style={styles.codeBlock}>
+              <View style={[
+                styles.codeBlock,
+                styles.inputCodeBlock,
+                { 
+                  backgroundColor: codeBlockBg,
+                  borderColor: codeBorderColor
+                }
+              ]}>
                 <ThemedText selectable={true} style={[styles.toolResult, styles.scrollableText]}>
                   {typeof item.input === 'object'
                     ? formatCompactJSON(item.input)
@@ -276,12 +391,26 @@ export function ChatMessage({ message, toolResultsMap = {} }: ChatMessageProps) 
         case 'tool_result':
           return (
             <Collapsible key={item.key} title="Tool Result">
-              <View style={styles.codeBlock}>
-                <ThemedText selectable={true} style={[styles.toolResult, styles.scrollableText]}>
-                  {typeof item.content === 'object'
-                    ? formatCompactJSON(item.content)
-                    : formatCompactText(String(item.content || ''))}
-                </ThemedText>
+              <View style={[
+                styles.codeBlock, 
+                { 
+                  backgroundColor: codeBlockBg,
+                  borderColor: codeBorderColor
+                }
+              ]}>
+                {typeof item.content === 'object' ? (
+                  <ThemedText selectable={true} style={[styles.toolResult, styles.scrollableText]}>
+                    {formatCompactJSON(item.content)}
+                  </ThemedText>
+                ) : isDiffOutput(String(item.content || '')) ? (
+                  <View style={styles.scrollableText}>
+                    {formatDiff(String(item.content || ''))}
+                  </View>
+                ) : (
+                  <ThemedText selectable={true} style={[styles.toolResult, styles.scrollableText]}>
+                    {formatCompactText(String(item.content || ''))}
+                  </ThemedText>
+                )}
               </View>
             </Collapsible>
           );
@@ -390,17 +519,17 @@ const styles = StyleSheet.create({
     flexShrink: 1,
   },
   codeBlock: {
-    backgroundColor: '#f5f5f5',
     borderRadius: 4,
     padding: 8,
     width: '100%',
     overflow: 'scroll',
     borderWidth: 1,
-    borderColor: '#e0e0e0',
+  },
+  inputCodeBlock: {
+    maxHeight: 150, // Limit height of input section
   },
   divider: {
     height: StyleSheet.hairlineWidth,
-    backgroundColor: '#cccccc80',
     marginVertical: 10,
     width: '100%',
   },

@@ -34,6 +34,8 @@ interface AppContextType {
   setHostname: (hostname: string) => void;
   port: number;
   setPort: (port: number) => void;
+  webCommand: string;
+  setWebCommand: (command: string) => void;
   messages: Message[];
   addMessage: (
     content: string | MessageContent[],
@@ -61,6 +63,8 @@ const defaultContext: AppContextType = {
   setHostname: () => {},
   port: 3000,
   setPort: () => {},
+  webCommand: "npm run dev",
+  setWebCommand: () => {},
   messages: [],
   addMessage: () => {},
   clearMessages: () => {},
@@ -94,10 +98,12 @@ const HOSTNAME_STORAGE_KEY = "app_hostname";
 const PORT_STORAGE_KEY = "app_port";
 const THEME_PREFERENCE_KEY = "app_theme_preference";
 const CURRENT_DIRECTORY_STORAGE_KEY = "app_current_directory";
+const WEB_COMMAND_STORAGE_KEY = "app_web_command";
 
 export function AppProvider({ children }: AppProviderProps) {
   const [hostname, setHostname] = useState("suyogs-macbook-pro.local");
   const [port, setPort] = useState(3000);
+  const [webCommand, setWebCommandState] = useState("npm run dev");
   const [messages, setMessages] = useState<Message[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isResponseLoading, setIsResponseLoading] = useState(false);
@@ -120,6 +126,11 @@ export function AppProvider({ children }: AppProviderProps) {
         const savedPort = await AsyncStorage.getItem(PORT_STORAGE_KEY);
         if (savedPort) {
           setPort(parseInt(savedPort, 10));
+        }
+
+        const savedWebCommand = await AsyncStorage.getItem(WEB_COMMAND_STORAGE_KEY);
+        if (savedWebCommand) {
+          setWebCommandState(savedWebCommand);
         }
 
         const savedTheme = await AsyncStorage.getItem(THEME_PREFERENCE_KEY);
@@ -173,6 +184,15 @@ export function AppProvider({ children }: AppProviderProps) {
       setCurrentDirectoryState(newDirectory);
     } catch (error) {
       console.error("Failed to save current directory:", error);
+    }
+  };
+
+  const setWebCommand = async (newCommand: string) => {
+    try {
+      await AsyncStorage.setItem(WEB_COMMAND_STORAGE_KEY, newCommand);
+      setWebCommandState(newCommand);
+    } catch (error) {
+      console.error("Failed to save web command:", error);
     }
   };
 
@@ -362,6 +382,8 @@ export function AppProvider({ children }: AppProviderProps) {
     setHostname: updateHostname,
     port,
     setPort: updatePort,
+    webCommand,
+    setWebCommand,
     messages,
     addMessage,
     clearMessages,
