@@ -1,27 +1,19 @@
-import { useLocalSearchParams } from 'expo-router';
-import React, { useEffect, useState } from 'react';
+import React, { useState } from 'react';
 import { ActivityIndicator, SafeAreaView, StyleSheet, View } from 'react-native';
 import { WebView } from 'react-native-webview';
 
 import { ThemedText } from '@/components/ThemedText';
 import { ThemedView } from '@/components/ThemedView';
+import { useAppContext } from '@/contexts/AppContext';
 import { useThemeColor } from '@/hooks/useThemeColor';
 
 export default function WebPreviewScreen() {
-  const [hostname, setHostname] = useState('macbook.local');
+  const { hostname, port } = useAppContext();
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const params = useLocalSearchParams<{ hostname?: string }>();
   const backgroundColor = useThemeColor({}, 'background');
 
-  // Update hostname if provided in params
-  useEffect(() => {
-    if (params.hostname) {
-      setHostname(params.hostname);
-    }
-  }, [params.hostname]);
-
-  const url = `http://${hostname}:3000`;
+  const url = `http://${hostname}:${port}`;
 
   const handleLoadStart = () => {
     setIsLoading(true);

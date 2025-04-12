@@ -1,4 +1,3 @@
-import { useRouter } from 'expo-router';
 import React, { useRef, useState } from 'react';
 import { FlatList, SafeAreaView, StyleSheet, TouchableOpacity, View } from 'react-native';
 
@@ -12,25 +11,13 @@ import { useAppContext } from '@/contexts/AppContext';
 import { useThemeColor } from '@/hooks/useThemeColor';
 
 export default function ChatScreen() {
-  const { messages, addMessage, hostname } = useAppContext();
+  const { messages, addMessage } = useAppContext();
   const [settingsVisible, setSettingsVisible] = useState(false);
   const flatListRef = useRef<FlatList>(null);
-  const router = useRouter();
   const tintColor = useThemeColor({}, 'tint');
 
   const handleSend = (text: string) => {
     addMessage(text, 'user');
-  };
-
-  const handleServerResponse = (text: string) => {
-    addMessage(text, 'assistant');
-  };
-
-  const openWebPreview = () => {
-    router.push({
-      pathname: '/web-preview',
-      params: { hostname },
-    });
   };
 
   return (

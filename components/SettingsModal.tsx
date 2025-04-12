@@ -20,13 +20,23 @@ interface SettingsModalProps {
 }
 
 export function SettingsModal({ visible, onClose }: SettingsModalProps) {
-  const { hostname, setHostname } = useAppContext();
-  const [inputValue, setInputValue] = useState(hostname);
+  const { hostname, setHostname, port, setPort } = useAppContext();
+  const [hostnameValue, setHostnameValue] = useState(hostname);
+  const [portValue, setPortValue] = useState(port.toString());
+  const [portError, setPortError] = useState('');
   const backgroundColor = useThemeColor({}, 'background');
   const textColor = useThemeColor({}, 'text');
 
   const handleSave = () => {
-    setHostname(inputValue);
+    // Validate port
+    const portNum = parseInt(portValue, 10);
+    if (isNaN(portNum) || portNum < 1 || portNum > 65535) {
+      setPortError('Port must be a number between 1 and 65535');
+      return;
+    }
+
+    setHostname(hostnameValue);
+    setPort(portNum);
     onClose();
   };
 
@@ -58,13 +68,39 @@ export function SettingsModal({ visible, onClose }: SettingsModalProps) {
                   borderWidth: StyleSheet.hairlineWidth,
                 },
               ]}
-              value={inputValue}
-              onChangeText={setInputValue}
+              value={hostnameValue}
+              onChangeText={setHostnameValue}
               placeholder="macbook.local"
               placeholderTextColor="#999"
               autoCapitalize="none"
               autoCorrect={false}
             />
+          </View>
+
+          <View style={styles.inputContainer}>
+            <ThemedText>Port</ThemedText>
+            <TextInput
+              style={[
+                styles.input,
+                {
+                  backgroundColor,
+                  color: textColor,
+                  borderColor: Platform.OS === 'ios' ? '#cccccc80' : 'transparent',
+                  borderWidth: StyleSheet.hairlineWidth,
+                },
+              ]}
+              value={portValue}
+              onChangeText={(text) => {
+                setPortValue(text);
+                setPortError('');
+              }}
+              placeholder="3000"
+              placeholderTextColor="#999"
+              keyboardType="numeric"
+              autoCapitalize="none"
+              autoCorrect={false}
+            />
+            {portError ? <ThemedText style={styles.errorText}>{portError}</ThemedText> : null}
           </View>
 
           <View style={styles.buttonContainer}>
@@ -133,5 +169,10 @@ const styles = StyleSheet.create({
   },
   saveButtonText: {
     color: 'white',
+  },
+  errorText: {
+    color: 'red',
+    fontSize: 12,
+    marginTop: 4,
   },
 });
