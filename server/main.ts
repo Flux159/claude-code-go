@@ -97,7 +97,6 @@ app.post('/prompt', async (req: Request<{}, {}, ExecuteCommandRequest>, res: Res
             return acc;
         }, {} as Record<string, string>);
 
-        // @ts-ignore
         const { stdout, stderr } = await execAsync(claudeCommand, { 
             cwd: directory,
             env: { ...process.env, ...shellEnv }
