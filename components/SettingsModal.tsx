@@ -54,7 +54,8 @@ export function SettingsModal({ visible, onClose }: SettingsModalProps) {
                 {
                   backgroundColor,
                   color: textColor,
-                  borderColor: Platform.OS === 'ios' ? '#ccc' : 'transparent',
+                  borderColor: Platform.OS === 'ios' ? '#cccccc80' : 'transparent',
+                  borderWidth: StyleSheet.hairlineWidth,
                 },
               ]}
               value={inputValue}
@@ -113,7 +114,6 @@ const styles = StyleSheet.create({
   input: {
     height: 40,
     marginTop: 8,
-    borderWidth: 1,
     padding: 10,
     borderRadius: 5,
   },

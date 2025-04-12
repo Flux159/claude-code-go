@@ -95,7 +95,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     padding: 16,
     borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: '#ccc',
+    borderBottomColor: '#cccccc80',
   },
   headerButtons: {
     flexDirection: 'row',

@@ -25,6 +25,24 @@ In the output, you'll find options to open the app in a
 
 You can start developing by editing the files inside the **app** directory. This project uses [file-based routing](https://docs.expo.dev/router/introduction).
 
+## Troubleshooting
+
+If you get an error running on your mobile (Android) as follows:
+
+```
+Uncaught Error: java.io.IOException: Failed to download remote
+update
+19:45:57 Fatal
+```
+
+You can run with the `--tunnel` flag instead
+
+```
+npx expo start --tunnel
+```
+
+See more details here: https://stackoverflow.com/questions/79332816/uncaught-error-java-io-ioexception-failed-to-download-remote-update
+
 ## Get a fresh project
 
 When you're ready, run:
