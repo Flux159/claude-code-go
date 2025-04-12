@@ -1,25 +1,15 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { Platform, StyleSheet, View } from 'react-native';
 
 import { Collapsible } from '@/components/Collapsible';
+import { Message } from '@/contexts/AppContext';
 import { useThemeColor } from '@/hooks/useThemeColor';
 import { ThemedText } from './ThemedText';
 import { ThemedView } from './ThemedView';
 
 interface ChatMessageProps {
-  message: {
-    id: string;
-    role: 'user' | 'assistant' | 'system';
-    content: Array<{
-      type: string;
-      text?: string;
-      content?: string;
-      name?: string;
-      input?: any;
-      tool_use_id?: string;
-    }>;
-    timestamp: Date;
-  };
+  message: Message;
+  toolResultsMap?: Record<string, any>;
 }
 
 export const LoadingDots = () => {
@@ -43,7 +33,7 @@ export const LoadingDots = () => {
   );
 };
 
-export function ChatMessage({ message }: ChatMessageProps) {
+export function ChatMessage({ message, toolResultsMap = {} }: ChatMessageProps) {
   const isUser = message.role === 'user';
   const userBubbleColor = useThemeColor({}, 'userBubble');
   const assistantBubbleColor = useThemeColor({}, 'assistantBubble');
@@ -54,37 +44,121 @@ export function ChatMessage({ message }: ChatMessageProps) {
     minute: '2-digit',
   });
 
-  // Render different content based on type
-  const renderContent = () => {
-    return message.content.map((item, index) => {
-      if (item.type === 'text' && item.text) {
-        return (
-          <ThemedText
-            key={index}
-            style={isUser ? styles.userText : styles.assistantText}
-            selectable={true}
-          >
-            {item.text}
-          </ThemedText>
-        );
-      } else if (item.type === 'tool_result' && item.content) {
-        return (
-          <Collapsible key={index} title="Tool Result">
-            <ThemedText selectable={true} style={styles.toolResult}>
-              {item.content}
-            </ThemedText>
-          </Collapsible>
-        );
-      } else if (item.type === 'tool_use' && item.name) {
-        return (
-          <Collapsible key={index} title={item.name}>
-            <ThemedText selectable={true} style={styles.toolResult}>
-              {JSON.stringify(item.input, null, 2)}
-            </ThemedText>
-          </Collapsible>
-        );
+  // Define the type for processed content items
+  type ProcessedContentItem = {
+    type: string;
+    content?: string;
+    name?: string;
+    input?: any;
+    result?: any;
+    key: string;
+  };
+
+  // Process the content items to combine tool calls with their results
+  const processedContent = useMemo(() => {
+    const result: ProcessedContentItem[] = [];
+
+    // Create the processed items
+    message.content.forEach((item, index) => {
+      if (item.type === 'text') {
+        // Text items pass through unchanged
+        result.push({
+          type: 'text',
+          content: item.text,
+          key: `text-${index}`
+        });
       }
-      return null;
+      else if (item.type === 'tool_use') {
+        // Check if this tool use has a corresponding result
+        const resultItem = item.id ? toolResultsMap[item.id] : null;
+
+        if (resultItem) {
+          // Create a combined tool item
+          result.push({
+            type: 'tool_combined',
+            name: item.name,
+            input: item.input,
+            result: resultItem.content,
+            key: `combined-${index}`
+          });
+        } else {
+          // Just the tool call
+          result.push({
+            type: 'tool_call',
+            name: item.name,
+            input: item.input,
+            key: `call-${index}`
+          });
+        }
+      }
+      // Skip tool_result items entirely - they're already handled with tool_use items
+    });
+
+    return result;
+  }, [message.content, toolResultsMap]);
+
+  // Render the processed content
+  const renderContent = () => {
+    return processedContent.map((item: ProcessedContentItem) => {
+      switch (item.type) {
+        case 'text':
+          return (
+            <ThemedText
+              key={item.key}
+              style={isUser ? styles.userText : styles.assistantText}
+              selectable={true}
+            >
+              {item.content === "(no content)" ? "Completed." : item.content}
+            </ThemedText>
+          );
+
+        case 'tool_combined':
+          return (
+            <Collapsible key={item.key} title={item.name || 'Tool'}>
+              {/* Input section */}
+              <ThemedText selectable={true} style={styles.toolResult}>
+                {typeof item.input === 'object'
+                  ? JSON.stringify(item.input, null, 2)
+                  : String(item.input || '')}
+              </ThemedText>
+
+              {/* Divider */}
+              <View style={styles.divider} />
+
+              {/* Result section */}
+              <ThemedText selectable={true} style={styles.toolResult}>
+                {typeof item.result === 'object'
+                  ? JSON.stringify(item.result, null, 2)
+                  : String(item.result || '')}
+              </ThemedText>
+            </Collapsible>
+          );
+
+        case 'tool_call':
+          return (
+            <Collapsible key={item.key} title={item.name || 'Tool Call'}>
+              <ThemedText selectable={true} style={styles.toolResult}>
+                {typeof item.input === 'object'
+                  ? JSON.stringify(item.input, null, 2)
+                  : String(item.input || '')}
+              </ThemedText>
+            </Collapsible>
+          );
+
+        case 'tool_result':
+          return (
+            <Collapsible key={item.key} title="Tool Result">
+              <ThemedText selectable={true} style={styles.toolResult}>
+                {typeof item.content === 'object'
+                  ? JSON.stringify(item.content, null, 2)
+                  : String(item.content || '')}
+              </ThemedText>
+            </Collapsible>
+          );
+
+        default:
+          return null;
+      }
     });
   };
 
@@ -128,6 +202,7 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.1,
     shadowRadius: 1,
     elevation: 1,
+    gap: 12,
   },
   userBubble: {
     borderBottomRightRadius: 4,
@@ -150,7 +225,13 @@ const styles = StyleSheet.create({
   },
   toolResult: {
     fontFamily: Platform.OS === 'ios' ? 'Menlo' : 'monospace',
-    fontSize: 12,
+    fontSize: 10,
+  },
+  divider: {
+    height: StyleSheet.hairlineWidth,
+    backgroundColor: '#cccccc80',
+    marginVertical: 10,
+    width: '100%',
   },
   timestamp: {
     fontSize: 12,

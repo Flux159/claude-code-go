@@ -1,17 +1,17 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import React, { createContext, ReactNode, useContext, useEffect, useState } from 'react';
 
-interface MessageContent {
+export interface MessageContent {
   type: 'text' | 'tool_use' | 'tool_result';
   text?: string;
   id?: string;
   name?: string;
   input?: any;
-  content?: string;
+  content?: any;
   tool_use_id?: string;
 }
 
-interface Message {
+export interface Message {
   id: string;
   type?: string;
   role: 'user' | 'assistant' | 'system';

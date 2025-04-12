@@ -13,6 +13,38 @@ export default function ChatScreen() {
   const flatListRef = useRef<FlatList>(null);
   const assistantBubbleColor = useThemeColor({}, 'assistantBubble');
 
+  // Create a global tool results map
+  const toolResultsMap = React.useMemo(() => {
+    const map: Record<string, any> = {};
+
+    // Process all messages to build the tool results map
+    messages.forEach(message => {
+      message.content.forEach(item => {
+        if (item.type === 'tool_result' && item.tool_use_id) {
+          map[item.tool_use_id] = item;
+        }
+      });
+    });
+
+    return map;
+  }, [messages]);
+
+  // Filter out messages that only contain tool results that have been combined
+  const filteredMessages = React.useMemo(() => {
+    return messages.filter(message => {
+      // Keep all user messages
+      if (message.role === 'user') return true;
+
+      // For assistant messages, check if they contain anything other than tool results
+      // or if they contain tool results that haven't been combined
+      return message.content.some(item =>
+        item.type !== 'tool_result' ||
+        !item.tool_use_id ||
+        !toolResultsMap[item.tool_use_id]
+      );
+    });
+  }, [messages, toolResultsMap]);
+
   // Loading indicator component to show at the bottom of the message list
   const LoadingIndicator = () => {
     if (!isResponseLoading) return null;
@@ -38,10 +70,10 @@ export default function ChatScreen() {
         {/* Chat Messages */}
         <FlatList
           ref={flatListRef}
-          data={messages}
+          data={filteredMessages}
           keyExtractor={(item) => item.id}
           renderItem={({ item }) => (
-            <ChatMessage message={item} />
+            <ChatMessage message={item} toolResultsMap={toolResultsMap} />
           )}
           ListFooterComponent={<LoadingIndicator />}
           contentContainerStyle={styles.messagesContainer}
