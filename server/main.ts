@@ -305,6 +305,8 @@ app.post("/promptstream", async (req: Request<{}, {}, ExecuteCommandRequest>, re
             // process.kill();
         });
         
+        console.log('test');
+
     } catch (error) {
         console.error('Error in promptstream:', error);
         res.status(500).json({ 
