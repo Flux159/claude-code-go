@@ -180,13 +180,20 @@ def git_reset():
         if not directory:
             return jsonify({'error': 'Directory path is required'}), 400
         
+        # Check which git command is available (oldgit or git)
+        try:
+            subprocess.run(['oldgit', '--version'], capture_output=True, check=True)
+            git_cmd = 'oldgit'
+        except (subprocess.CalledProcessError, FileNotFoundError):
+            git_cmd = 'git'
+        
         # Check if directory is a git repository
         if not os.path.exists(os.path.join(directory, '.git')):
             return jsonify({'error': 'Not a git repository'}), 400
         
         # Run git reset --hard
         result = subprocess.run(
-            'git reset --hard',
+            f'{git_cmd} reset --hard',
             cwd=directory,
             shell=True,
             capture_output=True,
@@ -195,7 +202,7 @@ def git_reset():
         
         # Also clean untracked files if desired
         clean_result = subprocess.run(
-            'git clean -fd',
+            f'{git_cmd} clean -fd',
             cwd=directory,
             shell=True,
             capture_output=True,
