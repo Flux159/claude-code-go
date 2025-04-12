@@ -12,7 +12,8 @@
     "lint": "expo lint",
     "server-typescript": "tsx server/main.ts",
     "server": "./server-python",
-    "postinstall": "./postinstall"
+    "postinstall": "./postinstall && cd claude-next-app && npm install",
+    "dev": "cd claude-next-app && npm run dev"
   },
   "jest": {
     "preset": "jest-expo"
