@@ -25,14 +25,18 @@ def get_shell_env() -> Dict[str, str]:
 @app.route("/directories", methods=["GET"])
 def get_directories():
     try:
-        relative = request.args.get("relative", "false").lower() == "true"
+        relative = (
+            request.args.get("relative", "true").lower() == "true"
+        )  # Default to true
+        print(relative)
 
         if relative:
             # Return the parent directory of the current repository
-            directory = str(Path(os.getcwd()).parent)
+            directory = str(Path(os.getcwd()))
         else:
-            # Return the user's home directory by default
+            # Return the user's home directory if explicitly asked for non-relative path
             directory = os.path.expanduser("~")
+        print(directory)
 
         return jsonify({"directory": directory})
     except Exception as e:
@@ -75,7 +79,7 @@ def report_error():
 
         # Add source information
         error_data["source"] = "next-js-app"
-        
+
         # Add a unique ID to the error
         error_data["id"] = f"error-{time.time()}-{len(recent_errors)}"
 
@@ -92,11 +96,11 @@ def report_error():
         # Log the count of stored errors
         error_count = len(recent_errors)
         print(f"Currently storing {error_count} errors for next Claude prompt")
-        
+
         # Create the error_count file in the same directory as this script
         script_dir = os.path.dirname(os.path.abspath(__file__))
         error_count_path = os.path.join(script_dir, "error_count.txt")
-        
+
         # Add a file system flag for clients to detect errors more reliably
         try:
             with open(error_count_path, "w") as f:
@@ -105,26 +109,31 @@ def report_error():
         except Exception as write_err:
             print(f"Could not write error count file: {write_err}")
 
-        return jsonify({
-            "success": True, 
-            "stored_errors": len(recent_errors),
-            "error_count": error_count,
-            "error_count_file": error_count_path
-        })
+        return jsonify(
+            {
+                "success": True,
+                "stored_errors": len(recent_errors),
+                "error_count": error_count,
+                "error_count_file": error_count_path,
+            }
+        )
     except Exception as e:
         print(f"Error handling error report: {str(e)}")
-        return jsonify({"error": "Failed to process error report", "details": str(e)}), 500
+        return (
+            jsonify({"error": "Failed to process error report", "details": str(e)}),
+            500,
+        )
 
 
 @app.route("/prompt", methods=["POST"])
 def execute_command():
     try:
-        print("\n" + "-"*80)
+        print("\n" + "-" * 80)
         print(" PROMPT REQUEST RECEIVED ".center(80, "-"))
-        
+
         data = request.get_json()
         print(f"Request data: {json.dumps(data, indent=2)}")
-        
+
         command = data.get("command")
         directory = data.get("directory")
         include_errors = data.get("include_errors", True)  # Default to including errors
@@ -133,7 +142,7 @@ def execute_command():
             error_msg = "Command is required"
             print(f"Error: {error_msg}")
             return jsonify({"error": error_msg}), 400
-            
+
         if not directory:
             # Use current directory as fallback
             directory = str(Path(os.getcwd()))
@@ -141,7 +150,7 @@ def execute_command():
 
         # Count errors before processing
         initial_error_count = len(recent_errors)
-        
+
         # If we have recent errors and they should be included, add them to the command
         modified_command = command
         if include_errors and recent_errors:
@@ -155,7 +164,7 @@ def execute_command():
 
             # Clear the errors after including them
             recent_errors.clear()
-            
+
             # Update the error count file to reflect that errors are now cleared
             try:
                 script_dir = os.path.dirname(os.path.abspath(__file__))
@@ -171,23 +180,29 @@ def execute_command():
             print(" 🧹 ERRORS CLEARED AFTER INCLUSION 🧹 ".center(80, "="))
             print("=" * 80 + "\n")
 
+        claude_command = f'claude -p --dangerously-skip-permissions --output-format "stream-json" "{modified_command}"'
+        print(f"Executing command: {claude_command} in directory: {directory}")
+
         # Get shell environment
         shell_env = get_shell_env()
         env = {**os.environ, **shell_env}
-        
+
         # Create a temporary file with the prompt content
         import tempfile
-        with tempfile.NamedTemporaryFile(mode='w', delete=False, suffix='.txt') as temp_file:
+
+        with tempfile.NamedTemporaryFile(
+            mode="w", delete=False, suffix=".txt"
+        ) as temp_file:
             temp_file.write(modified_command)
             prompt_file = temp_file.name
-        
+
         # Use cat to pipe the prompt content to claude
         claude_command = f'cat "{prompt_file}" | claude -p --dangerously-skip-permissions --output-format "stream-json"'
         print(f"Using command: {claude_command}")
         print(f"Prompt length: {len(modified_command)}")
         print(f"Using temp file: {prompt_file}")
         print(f"In directory: {directory}")
-        
+
         result = subprocess.run(
             claude_command,
             cwd=directory,
@@ -196,35 +211,34 @@ def execute_command():
             capture_output=True,
             text=True,
         )
-        
-        # Clean up the temporary file
-        try:
-            os.unlink(prompt_file)
-            print(f"Removed temp file: {prompt_file}")
-        except Exception as e:
-            print(f"Failed to remove temp file {prompt_file}: {e}")
-        
+
         print(f"Command completed with return code: {result.returncode}")
-        print(f"stdout length: {len(result.stdout)}, stderr length: {len(result.stderr)}")
-        
+        print(
+            f"stdout length: {len(result.stdout)}, stderr length: {len(result.stderr)}"
+        )
+
         if result.returncode != 0:
             print(f"Error running command: {result.stderr}")
-        
+
         # Include the error count in the response
         response_data = {
-            "stdout": result.stdout, 
-            "stderr": result.stderr, 
+            "stdout": result.stdout,
+            "stderr": result.stderr,
             "success": result.returncode == 0,
             "initial_error_count": initial_error_count,
-            "remaining_error_count": len(recent_errors)
+            "remaining_error_count": len(recent_errors),
         }
         return jsonify(response_data)
     except Exception as e:
         error_message = str(e)
         print(f"Exception in execute_command: {error_message}")
         import traceback
+
         traceback.print_exc()
-        return jsonify({"error": "Failed to execute command", "details": error_message}), 500
+        return (
+            jsonify({"error": "Failed to execute command", "details": error_message}),
+            500,
+        )
 
 
 @app.route("/")
@@ -250,25 +264,26 @@ def generate_sse_response(command: str, directory: str, include_errors: bool = T
             recent_errors.clear()
 
             print("\n" + "=" * 80)
-            print(" 🔄 INCLUDING ERROR CONTEXT IN CLAUDE PROMPT (SSE) 🔄 ".center(80, "="))
+            print(
+                " 🔄 INCLUDING ERROR CONTEXT IN CLAUDE PROMPT (SSE) 🔄 ".center(80, "=")
+            )
             print("=" * 80 + "\n")
+
+        claude_command = f'claude -p --dangerously-skip-permissions --output-format "stream-json" "{modified_command}"'
+        print(f"Executing command: {claude_command} in directory: {directory}")
 
         # Get shell environment
         shell_env = get_shell_env()
         env = {**os.environ, **shell_env}
-        
+
         # Create a temporary file with the prompt content
         import tempfile
-        with tempfile.NamedTemporaryFile(mode='w', delete=False, suffix='.txt') as temp_file:
+
+        with tempfile.NamedTemporaryFile(
+            mode="w", delete=False, suffix=".txt"
+        ) as temp_file:
             temp_file.write(modified_command)
             prompt_file = temp_file.name
-        
-        # Use cat to pipe the prompt content to claude
-        claude_command = f'cat "{prompt_file}" | claude -p --dangerously-skip-permissions --output-format "stream-json"'
-        print(f"Using command: {claude_command}")
-        print(f"Prompt length: {len(modified_command)}")
-        print(f"Using temp file: {prompt_file}")
-        print(f"In directory: {directory}")
 
         process = subprocess.Popen(
             claude_command,
@@ -281,7 +296,7 @@ def generate_sse_response(command: str, directory: str, include_errors: bool = T
             bufsize=1,
             universal_newlines=True,
         )
-        
+
         # We'll clean up the temp file after the process completes
         temp_files_to_clean = [prompt_file]
 
@@ -302,7 +317,7 @@ def generate_sse_response(command: str, directory: str, include_errors: bool = T
 
         # Send final event
         yield f"data: {json.dumps({'stdout': '', 'stderr': '', 'allOutputs': all_outputs, 'success': True, 'exitCode': process.returncode})}\n\n"
-        
+
         # Clean up the temporary file
         try:
             for temp_file in temp_files_to_clean:
@@ -314,14 +329,14 @@ def generate_sse_response(command: str, directory: str, include_errors: bool = T
     except Exception as e:
         # Try to clean up temp files even on exception
         try:
-            if 'temp_files_to_clean' in locals():
+            if "temp_files_to_clean" in locals():
                 for temp_file in temp_files_to_clean:
                     if os.path.exists(temp_file):
                         os.unlink(temp_file)
                         print(f"Removed temp file on error: {temp_file}")
         except Exception as clean_err:
             print(f"Failed to remove temp file on error: {clean_err}")
-            
+
         yield f"data: {json.dumps({'error': str(e), 'success': False})}\n\n"
 
 
@@ -370,21 +385,23 @@ def prompt_stream_post():
 def get_errors():
     """Endpoint to retrieve current stored errors"""
     error_count = len(recent_errors)
-    
+
     if error_count > 0:
-        print("\n" + "!"*80)
-        print(f" 🔔 CLIENT REQUESTED ERROR COUNT: {error_count} PENDING ERRORS READY FOR CLAUDE 🔔 ".center(80, "!"))
-        print("!"*80 + "\n")
-    
+        print("\n" + "!" * 80)
+        print(
+            f" 🔔 CLIENT REQUESTED ERROR COUNT: {error_count} PENDING ERRORS READY FOR CLAUDE 🔔 ".center(
+                80, "!"
+            )
+        )
+        print("!" * 80 + "\n")
+
     # Add CORS headers to make sure this endpoint works from any origin
-    response = jsonify({
-        "count": error_count, 
-        "errors": list(recent_errors),
-        "timestamp": time.time()
-    })
-    response.headers.add('Access-Control-Allow-Origin', '*')
-    response.headers.add('Access-Control-Allow-Headers', 'Content-Type')
-    response.headers.add('Access-Control-Allow-Methods', 'GET')
+    response = jsonify(
+        {"count": error_count, "errors": list(recent_errors), "timestamp": time.time()}
+    )
+    response.headers.add("Access-Control-Allow-Origin", "*")
+    response.headers.add("Access-Control-Allow-Headers", "Content-Type")
+    response.headers.add("Access-Control-Allow-Methods", "GET")
     return response
 
 
@@ -394,30 +411,24 @@ def clear_errors():
     try:
         # Clear all stored errors
         recent_errors.clear()
-        
+
         # Update the error count file
-        try:
-            script_dir = os.path.dirname(os.path.abspath(__file__))
-            error_count_path = os.path.join(script_dir, "error_count.txt")
-            with open(error_count_path, "w") as f:
-                f.write("0")
-            print(f"Updated error count file to 0 at {error_count_path}")
-        except Exception as write_err:
-            print(f"Could not update error count file: {write_err}")
-            
+        script_dir = os.path.dirname(os.path.abspath(__file__))
+        error_count_path = os.path.join(script_dir, "error_count.txt")
+        with open(error_count_path, "w") as f:
+            f.write("0")
+
         print("\n" + "=" * 80)
         print(" 🧹 ERRORS MANUALLY CLEARED 🧹 ".center(80, "="))
         print("=" * 80 + "\n")
-        
+
         # Add CORS headers to make sure this endpoint works from any origin
-        response = jsonify({
-            "success": True,
-            "message": "All errors cleared successfully",
-            "count": 0
-        })
-        response.headers.add('Access-Control-Allow-Origin', '*')
-        response.headers.add('Access-Control-Allow-Headers', 'Content-Type')
-        response.headers.add('Access-Control-Allow-Methods', 'POST')
+        response = jsonify(
+            {"success": True, "message": "All errors cleared successfully", "count": 0}
+        )
+        response.headers.add("Access-Control-Allow-Origin", "*")
+        response.headers.add("Access-Control-Allow-Headers", "Content-Type")
+        response.headers.add("Access-Control-Allow-Methods", "POST")
         return response
     except Exception as e:
         print(f"Error clearing errors: {str(e)}")
@@ -486,7 +497,11 @@ if __name__ == "__main__":
     # Print a clear message that the server is running with hot reload
     print("\n" + "=" * 80)
     print(" Flask server starting with HOT RELOAD enabled ".center(80, "="))
-    print(" Changes to Python files will automatically restart the server ".center(80, "="))
+    print(
+        " Changes to Python files will automatically restart the server ".center(
+            80, "="
+        )
+    )
     print("=" * 80 + "\n")
 
     # Enable debug mode for hot reloading
