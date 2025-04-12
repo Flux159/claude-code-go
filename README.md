@@ -66,3 +66,25 @@ Join our community of developers creating universal apps.
 
 - [Expo on GitHub](https://github.com/expo/expo): View our open source platform and contribute.
 - [Discord community](https://chat.expo.dev): Chat with Expo users and ask questions.
+
+## Commands to start
+
+Make sure that you have installed & run [claude code](https://docs.anthropic.com/en/docs/agents-and-tools/claude-code/overview) once in your terminal first using the command and then accept it:
+
+```
+claude --dangerously-skip-permissions
+```
+
+Then, run the following command to install dependencies:
+
+```shell
+npm install
+```
+
+In 3 different terminal sessions, run the following commands:
+
+```shell
+npm run start
+npm run server
+npm run dev
+```
