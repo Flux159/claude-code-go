@@ -35,4 +35,8 @@ yarn-error.*
 # typescript
 *.tsbuildinfo
 
+# Ignore files related to the cursor package
+.cursorrules
+
+
 app-example
