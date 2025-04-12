@@ -35,8 +35,10 @@ export const LoadingDots = () => {
 
 export function ChatMessage({ message, toolResultsMap = {} }: ChatMessageProps) {
   const isUser = message.role === 'user';
+  const isSystem = message.role === 'system';
   const userBubbleColor = useThemeColor({}, 'userBubble');
   const assistantBubbleColor = useThemeColor({}, 'assistantBubble');
+  const systemBubbleColor = useThemeColor({}, 'background');
 
   // Format the timestamp
   const formattedTime = message.timestamp.toLocaleTimeString([], {
@@ -162,6 +164,20 @@ export function ChatMessage({ message, toolResultsMap = {} }: ChatMessageProps) 
     });
   };
 
+  // For system messages, use a special centered layout
+  if (isSystem) {
+    return (
+      <View style={styles.systemContainer}>
+        <ThemedView
+          style={[styles.systemBubble, { backgroundColor: systemBubbleColor }]}
+        >
+          {renderContent()}
+        </ThemedView>
+      </View>
+    );
+  }
+
+  // For regular user/assistant messages
   return (
     <View style={[styles.container, isUser ? styles.userContainer : styles.assistantContainer]}>
       <ThemedView
@@ -190,6 +206,15 @@ const styles = StyleSheet.create({
   assistantContainer: {
     alignSelf: 'flex-start',
     alignItems: 'flex-start',
+  },
+  systemContainer: {
+    alignSelf: 'center',
+    marginVertical: 16,
+  },
+  systemBubble: {
+    padding: 8,
+    borderRadius: 12,
+    opacity: 0.7,
   },
   bubble: {
     padding: 12,

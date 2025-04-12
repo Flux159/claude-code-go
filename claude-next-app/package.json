@@ -11,9 +11,13 @@
   },
   "dependencies": {
     "@phosphor-icons/react": "^2",
+    "@react-three/cannon": "^6.6.0",
+    "@react-three/drei": "^10.0.6",
+    "@react-three/fiber": "^9.1.2",
     "next": "15",
     "react": "^19",
-    "react-dom": "^19"
+    "react-dom": "^19",
+    "three": "^0.175.0"
   },
   "devDependencies": {
     "@eslint/eslintrc": "^3",

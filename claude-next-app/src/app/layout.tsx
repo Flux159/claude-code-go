@@ -1,6 +1,11 @@
 import type { Metadata, Viewport } from "next";
 import { Inter } from "next/font/google";
 import "./globals.css";
+import { ErrorBoundary } from './components/ErrorBoundary';
+import { isErrorMonitoringInitialized } from './error-monitor';  // Import the error monitoring script
+
+// Import the error monitor - this should initialize it globally
+import './error-monitor';
 
 const inter = Inter({ subsets: ["latin"] });
 
@@ -23,7 +28,49 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en">
-      <body className={`${inter.className} antialiased`}>{children}</body>
+      <head>
+        {/* Add inline script to initialize error monitoring before React loads */}
+        <script 
+          dangerouslySetInnerHTML={{ 
+            __html: `
+              (function() {
+                // Early error capture - catches errors that happen during initial load
+                // before React hydration
+                if (!window.__earlyErrorCapture && typeof window !== 'undefined') {
+                  window.__earlyErrorCapture = true;
+                  window.addEventListener('error', function(event) {
+                    try {
+                      console.error('Early error capture:', event.message);
+                      fetch('/api/error', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                          type: 'earlyError',
+                          message: event.message,
+                          filename: event.filename,
+                          lineno: event.lineno,
+                          colno: event.colno,
+                          timestamp: new Date().toISOString(),
+                          source: 'early-error-capture',
+                          url: window.location.href
+                        })
+                      });
+                    } catch (e) {
+                      // Silently ignore errors in the error handler
+                    }
+                  });
+                  console.log('Early error capture initialized');
+                }
+              })();
+            ` 
+          }} 
+        />
+      </head>
+      <body className={`${inter.className} antialiased`}>
+        <ErrorBoundary>
+          {children}
+        </ErrorBoundary>
+      </body>
     </html>
   );
 }
