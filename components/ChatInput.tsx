@@ -138,8 +138,12 @@ export function ChatInput() {
       .filter(Boolean) // Remove null entries
       .join('\n');
 
-    // Create the new user message
-    const userMessage = `<user>${text}</user>`;
+    // Determine which message to send
+    // If we have no input text but have errors, use our default message
+    // Otherwise use the actual input text
+    let messageToSend = hasText ? text : "Please fix these errors";
+    
+    const userMessage = `<user>${messageToSend}</user>`;
 
     // Build the conversation content
     const conversationContent = previousMessages
@@ -147,7 +151,8 @@ export function ChatInput() {
       : userMessage;
 
     // Wrap conversation in tags and add instructions
-    const prompt = `<conversation>\n${conversationContent}\n</conversation>\n\n<instructions>Respond to the user's last message</instructions>`;
+    // Redefining this to fix the "Property 'commandWithHistory' doesn't exist" error
+    const commandWithHistory = `<conversation>\n${conversationContent}\n</conversation>\n\n<instructions>Respond to the user's last message</instructions>`;
 
     try {
       // No need to update error count before sending
@@ -161,7 +166,8 @@ export function ChatInput() {
         serverPort: Constants.serverPort
       });
       
-      const requestBody = {
+      // Define with explicit type to ensure TypeScript recognizes the structure
+      const requestBody: { command: string; include_errors: boolean } = {
         command: commandWithHistory,
         include_errors: true // Always include errors from Next.js if any exist
       };
