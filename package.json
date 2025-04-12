@@ -10,7 +10,9 @@
     "web": "expo start --web",
     "test": "jest --watchAll",
     "lint": "expo lint",
-    "server": "tsx server/main.ts"
+    "server": "tsx server/main.ts",
+    "server-python": "./server-python",
+    "postinstall": "./postinstall"
   },
   "jest": {
     "preset": "jest-expo"
