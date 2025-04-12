@@ -9,7 +9,7 @@ import {
   TouchableWithoutFeedback,
   Dimensions,
   Platform,
-  SafeAreaView,
+  ActivityIndicator,
 } from "react-native";
 import { ThemedView } from "@/components/ThemedView";
 import { ThemedText } from "@/components/ThemedText";
@@ -18,6 +18,14 @@ import { Colors } from "@/constants/Colors";
 import { IconSymbol } from "./ui/IconSymbol";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useThemeColor } from "@/hooks/useThemeColor";
+import { useAppContext } from "@/contexts/AppContext";
+import { Constants } from "@/constants/Constants";
+
+interface FileItem {
+  name: string;
+  type: "directory" | "file";
+  path: string;
+}
 
 interface FileTreeProps {
   isVisible: boolean;
@@ -30,12 +38,19 @@ export function FileTree({ isVisible, onClose }: FileTreeProps) {
   const translateX = useRef(new Animated.Value(-300)).current;
   const opacity = useRef(new Animated.Value(0)).current;
   const [localVisible, setLocalVisible] = useState(isVisible);
+  const { hostname, currentDirectory, setCurrentDirectory } = useAppContext();
+  const PYTHON_PORT = Constants.serverPort;
 
   // Get theme-aware colors
   const backgroundColor = useThemeColor({}, "background");
   const borderColor = useThemeColor({}, "icon");
   const textColor = useThemeColor({}, "text");
   const tintColor = Colors[colorScheme ?? "light"].tint;
+
+  // Directory state
+  const [directoryContents, setDirectoryContents] = useState<FileItem[]>([]);
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState("");
 
   useEffect(() => {
     if (isVisible) {
@@ -53,6 +68,16 @@ export function FileTree({ isVisible, onClose }: FileTreeProps) {
           useNativeDriver: true,
         }),
       ]).start();
+
+      // If we have a current directory, load its contents
+      if (currentDirectory) {
+        console.log(`Using saved directory: ${currentDirectory}`);
+        loadDirectory(currentDirectory);
+      } else {
+        // Otherwise fetch the initial directory
+        console.log("No current directory, fetching from server");
+        fetchInitialDirectory();
+      }
     } else {
       // Animate the drawer out
       Animated.parallel([
@@ -70,7 +95,102 @@ export function FileTree({ isVisible, onClose }: FileTreeProps) {
         setLocalVisible(false);
       });
     }
-  }, [isVisible]);
+  }, [isVisible, currentDirectory, hostname, PYTHON_PORT]);
+
+  const fetchInitialDirectory = async () => {
+    try {
+      console.log(
+        `Fetching initial directory from: http://${hostname}:${PYTHON_PORT}/directories`
+      );
+      setIsLoading(true);
+      setError("");
+      setDirectoryContents([]); // Clear current contents
+
+      const response = await fetch(
+        `http://${hostname}:${PYTHON_PORT}/directories`
+      );
+      const data = await response.json();
+
+      if (response.ok) {
+        console.log(`Received directory from server: ${data.directory}`);
+        // Update the current directory in the app context
+        setCurrentDirectory(data.directory);
+        // Load the contents of this directory
+        await loadDirectory(data.directory);
+      } else {
+        console.error(`Server error: ${data.error || "Unknown error"}`);
+        setError(data.error || "Failed to fetch initial directory");
+      }
+    } catch (error) {
+      console.error("Error fetching directory:", error);
+      setError(
+        "Error loading initial directory: " +
+          (error instanceof Error ? error.message : String(error))
+      );
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const loadDirectory = async (directoryPath: string) => {
+    try {
+      console.log(`Loading contents of directory: ${directoryPath}`);
+      setIsLoading(true);
+      setError("");
+
+      const response = await fetch(
+        `http://${hostname}:${PYTHON_PORT}/directories`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({ directory: directoryPath }),
+        }
+      );
+
+      const data = await response.json();
+
+      if (response.ok) {
+        console.log(
+          `Loaded ${data.contents?.length || 0} items from ${directoryPath}`
+        );
+        setDirectoryContents(data.contents || []);
+      } else {
+        console.error(
+          `Error loading directory: ${data.error || "Unknown error"}`
+        );
+        setError(data.error || "Failed to load directory contents");
+      }
+    } catch (error) {
+      console.error("Error in loadDirectory:", error);
+      setError(
+        "Error loading directory: " +
+          (error instanceof Error ? error.message : String(error))
+      );
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleFileItemPress = (item: FileItem) => {
+    if (item.type === "directory") {
+      setCurrentDirectory(item.path);
+    }
+  };
+
+  const getParentDirectory = (directory: string) => {
+    const parts = directory.split("/");
+    parts.pop(); // Remove the last part
+    return parts.join("/") || "/";
+  };
+
+  const navigateToParent = () => {
+    if (currentDirectory && currentDirectory !== "/") {
+      const parentDir = getParentDirectory(currentDirectory);
+      setCurrentDirectory(parentDir);
+    }
+  };
 
   if (!localVisible) return null;
 
@@ -89,11 +209,10 @@ export function FileTree({ isVisible, onClose }: FileTreeProps) {
             transform: [{ translateX }],
             paddingTop: insets.top,
             backgroundColor,
-            borderRightColor: borderColor,
           },
         ]}
       >
-        <View style={[styles.header, { borderBottomColor: borderColor }]}>
+        <View style={styles.header}>
           <ThemedText type="title" style={styles.title}>
             File Explorer
           </ThemedText>
@@ -102,56 +221,132 @@ export function FileTree({ isVisible, onClose }: FileTreeProps) {
           </TouchableOpacity>
         </View>
 
-        <ScrollView style={styles.fileList}>
-          <View style={[styles.fileItem, { borderBottomColor: borderColor }]}>
-            <IconSymbol name="house" size={20} color={tintColor} />
-            <ThemedText style={styles.fileName}>project_root/</ThemedText>
+        {/* Current path display with reset button */}
+        <View style={styles.pathDisplay}>
+          <View style={styles.pathRow}>
+            <ThemedText
+              numberOfLines={1}
+              ellipsizeMode="middle"
+              style={styles.pathText}
+            >
+              {currentDirectory}
+            </ThemedText>
+            <TouchableOpacity
+              onPress={fetchInitialDirectory}
+              style={[
+                styles.resetButton,
+                {
+                  backgroundColor:
+                    backgroundColor === "#ffffff"
+                      ? "#f0f0f0"
+                      : "rgba(255,255,255,0.15)",
+                },
+              ]}
+              hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+            >
+              <View style={{ flexDirection: "row", alignItems: "center" }}>
+                <IconSymbol
+                  name="arrow.clockwise"
+                  size={16}
+                  color={tintColor}
+                />
+                <ThemedText style={{ fontSize: 12, marginLeft: 4 }}>
+                  Reset
+                </ThemedText>
+              </View>
+            </TouchableOpacity>
           </View>
+        </View>
 
-          <View
-            style={[
-              styles.fileItem,
-              styles.indented,
-              { borderBottomColor: borderColor },
-            ]}
-          >
-            <IconSymbol name="globe" size={20} color={tintColor} />
-            <ThemedText style={styles.fileName}>app/</ThemedText>
+        {isLoading ? (
+          <View style={styles.loaderContainer}>
+            <ActivityIndicator size="large" color={tintColor} />
+            <ThemedText style={styles.loaderText}>Loading...</ThemedText>
           </View>
+        ) : error ? (
+          <View style={styles.errorContainer}>
+            <ThemedText style={styles.errorText}>{error}</ThemedText>
+            <TouchableOpacity
+              style={[styles.retryButton, { backgroundColor: tintColor }]}
+              onPress={() =>
+                currentDirectory
+                  ? loadDirectory(currentDirectory)
+                  : fetchInitialDirectory()
+              }
+            >
+              <ThemedText style={styles.retryButtonText}>Retry</ThemedText>
+            </TouchableOpacity>
+          </View>
+        ) : (
+          <ScrollView style={styles.fileList}>
+            {/* Parent directory */}
+            {currentDirectory !== "/" && (
+              <TouchableOpacity
+                style={styles.fileItem}
+                onPress={navigateToParent}
+              >
+                <IconSymbol name="arrow.up" size={20} color={tintColor} />
+                <ThemedText style={styles.fileName}>
+                  Parent Directory
+                </ThemedText>
+              </TouchableOpacity>
+            )}
 
-          <View
-            style={[
-              styles.fileItem,
-              styles.doubleIndented,
-              { borderBottomColor: borderColor },
-            ]}
-          >
-            <IconSymbol name="globe" size={20} color={tintColor} />
-            <ThemedText style={styles.fileName}>(tabs)/</ThemedText>
-          </View>
+            {/* Directories first */}
+            {directoryContents
+              .filter(
+                (item) =>
+                  item.type === "directory" && !item.name.startsWith(".")
+              )
+              .sort((a, b) => a.name.localeCompare(b.name))
+              .map((item, index) => (
+                <TouchableOpacity
+                  key={item.path + index}
+                  style={styles.fileItem}
+                  onPress={() => handleFileItemPress(item)}
+                >
+                  <IconSymbol name="house" size={20} color={tintColor} />
+                  <ThemedText
+                    style={styles.fileName}
+                    numberOfLines={1}
+                    ellipsizeMode="middle"
+                  >
+                    {item.name}
+                  </ThemedText>
+                </TouchableOpacity>
+              ))}
 
-          <View
-            style={[
-              styles.fileItem,
-              styles.doubleIndented,
-              { borderBottomColor: borderColor },
-            ]}
-          >
-            <IconSymbol name="message.fill" size={20} color={tintColor} />
-            <ThemedText style={styles.fileName}>index.tsx</ThemedText>
-          </View>
+            {/* Then files */}
+            {directoryContents
+              .filter(
+                (item) => item.type === "file" && !item.name.startsWith(".")
+              )
+              .sort((a, b) => a.name.localeCompare(b.name))
+              .map((item, index) => (
+                <TouchableOpacity
+                  key={item.path + index}
+                  style={styles.fileItem}
+                >
+                  <IconSymbol name="message.fill" size={20} color={tintColor} />
+                  <ThemedText
+                    style={styles.fileName}
+                    numberOfLines={1}
+                    ellipsizeMode="middle"
+                  >
+                    {item.name}
+                  </ThemedText>
+                </TouchableOpacity>
+              ))}
 
-          <View
-            style={[
-              styles.fileItem,
-              styles.indented,
-              { borderBottomColor: borderColor },
-            ]}
-          >
-            <IconSymbol name="message.fill" size={20} color={tintColor} />
-            <ThemedText style={styles.fileName}>components/</ThemedText>
-          </View>
-        </ScrollView>
+            {directoryContents.length === 0 && (
+              <View style={styles.emptyContainer}>
+                <ThemedText style={styles.emptyText}>
+                  Empty directory
+                </ThemedText>
+              </View>
+            )}
+          </ScrollView>
+        )}
       </Animated.View>
     </View>
   );
@@ -181,7 +376,6 @@ const styles = StyleSheet.create({
     top: 0,
     bottom: 0,
     width: 280,
-    borderRightWidth: 1,
     shadowColor: "#000",
     shadowOffset: { width: 2, height: 0 },
     shadowOpacity: 0.1,
@@ -194,7 +388,7 @@ const styles = StyleSheet.create({
     alignItems: "center",
     paddingHorizontal: 16,
     paddingVertical: 12,
-    borderBottomWidth: 1,
+    borderBottomWidth: 0,
   },
   title: {
     fontSize: 18,
@@ -202,23 +396,75 @@ const styles = StyleSheet.create({
   closeButton: {
     padding: 4,
   },
+  pathDisplay: {
+    padding: 10,
+    marginBottom: 5,
+    backgroundColor: "rgba(0, 0, 0, 0.03)",
+  },
+  pathRow: {
+    flexDirection: "row",
+    alignItems: "center",
+  },
+  pathText: {
+    flex: 1,
+  },
+  resetButton: {
+    padding: 6,
+    paddingHorizontal: 8,
+    borderRadius: 4,
+    marginLeft: 8,
+    flexDirection: "row",
+    alignItems: "center",
+  },
   fileList: {
     flex: 1,
   },
   fileItem: {
     flexDirection: "row",
     alignItems: "center",
-    paddingVertical: 8,
+    paddingVertical: 10,
     paddingHorizontal: 16,
-    borderBottomWidth: 1,
+    borderBottomWidth: 0,
+    marginVertical: 2,
   },
   fileName: {
     marginLeft: 8,
+    flex: 1,
   },
-  indented: {
-    paddingLeft: 32,
+  loaderContainer: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
   },
-  doubleIndented: {
-    paddingLeft: 48,
+  loaderText: {
+    marginTop: 10,
+  },
+  errorContainer: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
+    padding: 20,
+  },
+  errorText: {
+    color: "#ff6b6b",
+    marginBottom: 20,
+    textAlign: "center",
+  },
+  retryButton: {
+    paddingVertical: 8,
+    paddingHorizontal: 16,
+    borderRadius: 4,
+  },
+  retryButtonText: {
+    color: "white",
+    fontWeight: "bold",
+  },
+  emptyContainer: {
+    padding: 20,
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  emptyText: {
+    opacity: 0.5,
   },
 });
