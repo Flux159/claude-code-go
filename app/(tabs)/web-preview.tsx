@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { SafeAreaView, StyleSheet, View } from 'react-native';
+import { SafeAreaView, StyleSheet, Text, View } from 'react-native';
 import { WebView } from 'react-native-webview';
 
 import { ThemedText } from '@/components/ThemedText';
@@ -8,7 +8,7 @@ import { useAppContext } from '@/contexts/AppContext';
 import { useThemeColor } from '@/hooks/useThemeColor';
 
 export default function WebPreviewScreen() {
-  const { hostname, port } = useAppContext();
+  const { hostname, port, webCommand } = useAppContext();
   const [error, setError] = useState<string | null>(null);
   const backgroundColor = useThemeColor({}, 'background');
   const webViewRef = useRef<WebView>(null);
@@ -28,7 +28,7 @@ export default function WebPreviewScreen() {
   };
 
   const handleError = () => {
-    setError(`Failed to load ${displayUrl}. Make sure the server is running and the hostname is correct.`);
+    setError(`Failed to load ${displayUrl}. Make sure the server is running with "${webCommand}" and the hostname is correct.`);
   };
 
   return (
