@@ -34,11 +34,7 @@ const nextConfig: NextConfig = {
   poweredByHeader: false,
   devIndicators: false,
   // Important: casing matters - using exact hostname from system
-  allowedDevOrigins: [
-    "localhost:3000",
-    "*",
-    "*:*"
-  ],
+  allowedDevOrigins: ["localhost:3000", "*", "*:*"],
 };
 
 export default nextConfig;
