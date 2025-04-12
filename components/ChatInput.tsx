@@ -8,12 +8,14 @@ import {
   View,
   Text,
   Alert,
+  ActivityIndicator,
 } from "react-native";
 
 import { Constants } from "@/constants/Constants";
 import { useAppContext } from "@/contexts/AppContext";
 import { useThemeColor } from "@/hooks/useThemeColor";
 import { IconSymbol } from "./ui/IconSymbol";
+import { useSpeechRecognition } from "@/hooks/useSpeechRecognition";
 
 export function ChatInput() {
   const [text, setText] = useState("");
@@ -32,6 +34,23 @@ export function ChatInput() {
   const tintColor = useThemeColor({}, "tint");
   const errorColor = "#ff6b6b"; // Red color for error indicator
 
+  // Voice recognition state
+  const {
+    isListening,
+    speechText,
+    hasPermission,
+    error: speechError,
+    toggleListening,
+    stopListening,
+  } = useSpeechRecognition();
+
+  // Listen for speech text changes
+  useEffect(() => {
+    if (speechText) {
+      setText((prev) => prev + speechText);
+    }
+  }, [speechText]);
+
   // Check for errors only when component mounts
   useEffect(() => {
     // Update immediately when component mounts
@@ -39,6 +58,15 @@ export function ChatInput() {
 
     // No interval to avoid too many requests
   }, []);
+
+  // Display any speech recognition errors
+  useEffect(() => {
+    if (speechError) {
+      console.error("Speech recognition error:", speechError);
+      // Don't show an error alert for every error - just log it
+      // If needed, we could add an unobtrusive error indicator here
+    }
+  }, [speechError]);
 
   const parseJsonResponses = (responseText: string) => {
     try {
@@ -272,120 +300,182 @@ export function ChatInput() {
 
   return (
     <KeyboardAvoidingView
-      behavior={Platform.OS === "ios" ? "padding" : undefined}
-      keyboardVerticalOffset={96}
+      behavior={Platform.OS === "ios" ? "padding" : "height"}
+      keyboardVerticalOffset={Platform.OS === "ios" ? 0 : 0}
+      style={[styles.container, { backgroundColor }]}
     >
-      <View style={[styles.container, { borderTopColor: "#cccccc80" }]}>
-        <View style={styles.inputContainer}>
+      {pendingErrorCount > 0 && (
+        <TouchableOpacity
+          style={styles.errorBanner}
+          onPress={() => {
+            updatePendingErrorCount();
+          }}
+        >
+          <View style={styles.errorTextContainer}>
+            <Text style={styles.errorText}>
+              {pendingErrorCount} error{pendingErrorCount !== 1 ? "s" : ""}{" "}
+              detected
+            </Text>
+            <Text style={styles.errorSubText}>
+              Tap to send a "fix errors" prompt
+            </Text>
+          </View>
+        </TouchableOpacity>
+      )}
+
+      <View style={styles.inputRow}>
+        <View style={[styles.inputContainer, { backgroundColor }]}>
           <TextInput
             style={[
               styles.input,
               {
-                backgroundColor,
                 color: textColor,
-                borderColor:
-                  Platform.OS === "ios" ? "#cccccc80" : "transparent",
-                borderWidth: StyleSheet.hairlineWidth,
+                backgroundColor,
               },
             ]}
+            placeholder="Message Claude..."
+            placeholderTextColor="#888"
             value={text}
             onChangeText={setText}
-            placeholder={
-              pendingErrorCount > 0
-                ? `Reply to Claude (or press send to fix ${pendingErrorCount} error${
-                    pendingErrorCount > 1 ? "s" : ""
-                  })`
-                : "Reply to Claude..."
-            }
-            placeholderTextColor={pendingErrorCount > 0 ? errorColor : "#999"}
-            multiline={false}
-            returnKeyType="send"
-            onSubmitEditing={handleSend}
+            multiline
           />
-
-          {pendingErrorCount > 0 && (
-            <TouchableOpacity
-              onPress={() => {
-                Alert.alert(
-                  "Clear Errors",
-                  `Clear ${pendingErrorCount} pending error${
-                    pendingErrorCount > 1 ? "s" : ""
-                  }?`,
-                  [
-                    { text: "Cancel", style: "cancel" },
-                    { text: "Clear", onPress: clearPendingErrors },
-                  ]
-                );
-              }}
-              style={[styles.errorBadge, { backgroundColor: errorColor }]}
-            >
-              <Text style={styles.errorBadgeText}>{pendingErrorCount}</Text>
-            </TouchableOpacity>
-          )}
         </View>
 
-        <TouchableOpacity
-          style={[
-            styles.sendButton,
-            {
-              backgroundColor:
-                text.trim() || pendingErrorCount > 0 ? tintColor : "#cccccc", // Gray out when disabled
-            },
-          ]}
-          onPress={handleSend}
-          disabled={!text.trim() && pendingErrorCount === 0} // Enable if there's text OR errors
-          hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-        >
-          <IconSymbol name="arrow.up" size={20} color="white" />
-        </TouchableOpacity>
+        <View style={styles.buttonContainer}>
+          {/* Voice input button */}
+          <TouchableOpacity
+            style={[
+              styles.iconButton,
+              isListening && styles.iconButtonActive,
+              { backgroundColor: isListening ? "#ffe0e0" : backgroundColor },
+            ]}
+            onPress={toggleListening}
+          >
+            <IconSymbol
+              name={isListening ? "mic.fill" : "mic"}
+              size={20}
+              color={isListening ? errorColor : tintColor}
+            />
+          </TouchableOpacity>
+
+          {/* Send button */}
+          <TouchableOpacity
+            style={[
+              styles.iconButton,
+              { backgroundColor },
+              text.trim().length === 0 && styles.disabledButton,
+            ]}
+            onPress={handleSend}
+            disabled={text.trim().length === 0 && pendingErrorCount === 0}
+          >
+            <IconSymbol
+              name="paperplane.fill"
+              size={20}
+              color={
+                text.trim().length === 0 && pendingErrorCount === 0
+                  ? "#888"
+                  : tintColor
+              }
+            />
+          </TouchableOpacity>
+        </View>
       </View>
+
+      {/* Voice recording indicator */}
+      {isListening && (
+        <View style={styles.listeningIndicator}>
+          <ActivityIndicator size="small" color={errorColor} />
+          <Text style={styles.listeningText}>Listening...</Text>
+          <TouchableOpacity onPress={stopListening}>
+            <Text style={styles.cancelText}>Cancel</Text>
+          </TouchableOpacity>
+        </View>
+      )}
     </KeyboardAvoidingView>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
-    flexDirection: "row",
+    padding: 12,
+    borderTopWidth: 1,
+    borderTopColor: "#2a2a2a",
+  },
+  errorBanner: {
+    backgroundColor: "#ff6b6b20",
     padding: 10,
+    borderRadius: 8,
+    marginBottom: 8,
+    flexDirection: "row",
     alignItems: "center",
-    borderTopWidth: StyleSheet.hairlineWidth,
-    borderTopColor: "#ccc", // Default color, will be overridden by inline style
+  },
+  errorIcon: {
+    marginRight: 8,
+  },
+  errorTextContainer: {
+    flex: 1,
+  },
+  errorText: {
+    color: "#ff6b6b",
+    fontWeight: "bold",
+  },
+  errorSubText: {
+    color: "#ff6b6b80",
+    fontSize: 12,
+  },
+  inputRow: {
+    flexDirection: "row",
+    alignItems: "flex-end",
   },
   inputContainer: {
     flex: 1,
-    position: "relative",
-    marginRight: 10,
+    borderWidth: 1,
+    borderColor: "#2a2a2a",
+    borderRadius: 20,
+    paddingLeft: 16,
+    paddingRight: 8,
+    paddingTop: 8,
+    paddingBottom: 8,
+    marginRight: 6,
   },
   input: {
-    flex: 1,
-    borderRadius: 20,
-    paddingVertical: 10,
-    paddingHorizontal: 16,
-    maxHeight: 100,
-    width: "100%",
-    paddingRight: 40, // Make room for the error badge
+    fontSize: 16,
+    maxHeight: 120,
   },
-  errorBadge: {
-    position: "absolute",
-    right: 8,
-    top: "50%",
-    marginTop: -10,
-    width: 20,
-    height: 20,
-    borderRadius: 10,
-    justifyContent: "center",
-    alignItems: "center",
+  buttonContainer: {
+    flexDirection: "row",
+    gap: 8,
   },
-  errorBadgeText: {
-    color: "white",
-    fontSize: 12,
-    fontWeight: "bold",
-  },
-  sendButton: {
+  iconButton: {
     width: 40,
     height: 40,
     borderRadius: 20,
+    borderWidth: 1,
+    borderColor: "#2a2a2a",
     justifyContent: "center",
     alignItems: "center",
+  },
+  iconButtonActive: {
+    borderColor: "#ff6b6b",
+  },
+  disabledButton: {
+    opacity: 0.5,
+  },
+  listeningIndicator: {
+    flexDirection: "row",
+    alignItems: "center",
+    padding: 8,
+    marginTop: 8,
+    backgroundColor: "#f8f8f830",
+    borderRadius: 8,
+  },
+  listeningText: {
+    marginLeft: 8,
+    color: "#fff",
+    flex: 1,
+  },
+  cancelText: {
+    color: "#ff6b6b",
+    fontWeight: "bold",
   },
 });

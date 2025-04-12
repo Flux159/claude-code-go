@@ -15,7 +15,9 @@
       "adaptiveIcon": {
         "foregroundImage": "./assets/images/adaptive-icon.png",
         "backgroundColor": "#ffffff"
-      }
+      },
+      "permissions": ["RECORD_AUDIO", "android.permission.RECORD_AUDIO"],
+      "package": "com.claude.codego"
     },
     "web": {
       "bundler": "metro",
@@ -32,7 +34,14 @@
           "resizeMode": "contain",
           "backgroundColor": "#ffffff"
         }
-      ]
+      ],
+      [
+        "expo-speech-recognition",
+        {
+          "microphonePermission": "Allow Claude Code Go to access your microphone"
+        }
+      ],
+      "@react-native-voice/voice"
     ],
     "experiments": {
       "typedRoutes": true
