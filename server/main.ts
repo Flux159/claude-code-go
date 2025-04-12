@@ -4,6 +4,7 @@ import { exec } from 'child_process';
 import { promisify } from 'util';
 import fs from 'fs/promises';
 import path from 'path';
+import os from 'os';
 
 interface ListDirectoryRequest {
     directory: string;
@@ -21,6 +22,27 @@ app.use(bodyParser.json());
 
 // Helper function to execute shell commands
 const execAsync = promisify(exec);
+
+app.get('/directories', (req: Request, res: Response) => {
+    try {
+        const { relative } = req.query;
+        
+        let directory: string;
+        
+        if (relative === 'true') {
+            // Return the parent directory of the current repository
+            const currentDir = process.cwd();
+            directory = path.dirname(currentDir);
+        } else {
+            // Return the user's home directory by default
+            directory = os.homedir();
+        }
+        
+        res.json({ directory });
+    } catch (error) {
+        res.status(500).json({ error: 'Failed to get directory path' });
+    }
+});
 
 // Route to list files and directoriesd
 // @ts-ignore
