@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import {
   KeyboardAvoidingView,
   Modal,
@@ -27,6 +27,14 @@ export function SettingsModal({ visible, onClose }: SettingsModalProps) {
   const backgroundColor = useThemeColor({}, 'background');
   const textColor = useThemeColor({}, 'text');
 
+  useEffect(() => {
+    if (visible) {
+      setHostnameValue(hostname);
+      setPortValue(port.toString());
+      setPortError('');
+    }
+  }, [visible, hostname, port]);
+
   const handleSave = () => {
     // Validate port
     const portNum = parseInt(portValue, 10);
@@ -42,7 +50,7 @@ export function SettingsModal({ visible, onClose }: SettingsModalProps) {
 
   return (
     <Modal
-      animationType="slide"
+      animationType="fade"
       transparent={true}
       visible={visible}
       onRequestClose={onClose}
@@ -155,17 +163,18 @@ const styles = StyleSheet.create({
   },
   buttonContainer: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
+    justifyContent: 'center',
+    gap: 12,
   },
   button: {
+    flex: 1,
     borderRadius: 5,
     padding: 10,
     elevation: 2,
-    minWidth: 100,
     alignItems: 'center',
   },
   saveButton: {
-    backgroundColor: '#2196F3',
+    backgroundColor: '#007AFF',
   },
   saveButtonText: {
     color: 'white',
