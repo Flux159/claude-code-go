@@ -66,7 +66,7 @@ export function ChatInput() {
     setIsResponseLoading(true);
 
     // Format conversation history as XML with user/assistant tags
-    const conversationHistory = messages
+    const previousMessages = messages
       .map(message => {
         // Skip empty messages
         if (!message.content || message.content.length === 0) return null;
@@ -82,13 +82,13 @@ export function ChatInput() {
             const formattedInput = typeof item.input === 'object'
               ? JSON.stringify(item.input, null, 2)
               : String(item.input || '');
-            return `<tool_call name="${item.name || ''}" id="${item.id || ''}">${formattedInput}</tool_call>`;
+            return `<tool_call name="${item.name || ''}" id="${item.id || ''}">\n${formattedInput}\n</tool_call>`;
           }
           else if (item.type === 'tool_result') {
             const formattedContent = typeof item.content === 'object'
               ? JSON.stringify(item.content, null, 2)
               : String(item.content || '');
-            return `<tool_result tool_use_id="${item.tool_use_id || ''}">${formattedContent}</tool_result>`;
+            return `<tool_result tool_use_id="${item.tool_use_id || ''}">\n${formattedContent}\n</tool_result>`;
           }
           return '';
         }).join('\n');
@@ -99,11 +99,19 @@ export function ChatInput() {
       .filter(Boolean) // Remove null entries
       .join('\n');
 
-    const fullConversation = conversationHistory
-      ? `<conversation>\n${conversationHistory}\n<user>${text}</user>\n</conversation>`
-      : `<conversation>\n<user>${text}</user>\n</conversation>`;
+    // Create the new user message
+    const userMessage = `<user>${text}</user>`;
 
-    const commandWithHistory = fullConversation;
+    // Add instructions element
+    const instructions = `<instructions>Respond to the user's last message</instructions>`;
+
+    // Build the conversation content
+    const conversationContent = previousMessages
+      ? `${previousMessages}\n${userMessage}\n\n${instructions}`
+      : `${userMessage}\n\n${instructions}`;
+
+    // Wrap everything in conversation tags
+    const prompt = `<conversation>\n${conversationContent}\n</conversation>`;
 
     try {
       const response = await fetch(`http://${hostname}:${Constants.serverPort}/prompt`, {
@@ -112,7 +120,7 @@ export function ChatInput() {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          command: commandWithHistory
+          command: prompt
         }),
       });
 
