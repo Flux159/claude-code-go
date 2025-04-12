@@ -23,6 +23,7 @@ A shell script is provided to test all endpoints using curl:
 ```
 
 This script will test all endpoints:
+
 - GET /directories
 - GET /directories?relative=true
 - POST /directories
@@ -37,8 +38,9 @@ A web interface is provided to test the SSE streaming endpoint:
 2. Open a browser and navigate to: http://localhost:3000
 3. Use the file browser to navigate to a directory
 4. Enter a command in the input field (e.g., `ls -la`)
-5. Click "Start Command" to begin streaming the command output
-6. Click "Stop" to abort the command
+5. If it returns `--dangerously-skip-permissions must be accepted in an interactive session first.`, this means you must manually run `claude --dangerously-skip-permissions` manually in your own terminal first to allow Claude Code to work
+6. Click "Start Command" to begin streaming the command output
+7. Click "Stop" to abort the command
 
 ### Using Jest Tests
 
@@ -59,6 +61,7 @@ Returns the user's home directory by default, or the parent directory of the cur
 Lists the contents of a specified directory.
 
 Request body:
+
 ```json
 {
   "directory": "/path/to/directory"
@@ -70,6 +73,7 @@ Request body:
 Executes a shell command and returns the output.
 
 Request body:
+
 ```json
 {
   "command": "ls -la",
@@ -82,6 +86,7 @@ Request body:
 Executes a shell command and streams the output using Server-Sent Events (SSE).
 
 Request body:
+
 ```json
 {
   "command": "ping -c 5 localhost",
@@ -90,8 +95,9 @@ Request body:
 ```
 
 The response is a stream of SSE events, each containing:
+
 - `stdout`: Standard output from the command
 - `stderr`: Standard error from the command
 - `allOutputs`: Array of all outputs so far
 - `success`: Boolean indicating if the command is still running
-- `exitCode`: Exit code of the command (only in the final event) 
+- `exitCode`: Exit code of the command (only in the final event)
