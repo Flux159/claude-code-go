@@ -171,26 +171,38 @@ def execute_command():
             print(" 🧹 ERRORS CLEARED AFTER INCLUSION 🧹 ".center(80, "="))
             print("=" * 80 + "\n")
 
-        claude_command = (
-            f'claude -p --dangerously-skip-permissions --output-format "stream-json" "{modified_command}"'
-        )
-        print(f"Executing command: {claude_command} in directory: {directory}")
-
         # Get shell environment
         shell_env = get_shell_env()
         env = {**os.environ, **shell_env}
-
-        print(f"Running command with length: {len(claude_command)}")
+        
+        # Create a temporary file with the prompt content
+        import tempfile
+        with tempfile.NamedTemporaryFile(mode='w', delete=False, suffix='.txt') as temp_file:
+            temp_file.write(modified_command)
+            prompt_file = temp_file.name
+        
+        # Use cat to pipe the prompt content to claude
+        claude_command = f'cat "{prompt_file}" | claude -p --dangerously-skip-permissions --output-format "stream-json"'
+        print(f"Using command: {claude_command}")
+        print(f"Prompt length: {len(modified_command)}")
+        print(f"Using temp file: {prompt_file}")
         print(f"In directory: {directory}")
         
         result = subprocess.run(
             claude_command,
             cwd=directory,
             env=env,
-            shell=True,  # Changed to True for better reliability
+            shell=True,
             capture_output=True,
             text=True,
         )
+        
+        # Clean up the temporary file
+        try:
+            os.unlink(prompt_file)
+            print(f"Removed temp file: {prompt_file}")
+        except Exception as e:
+            print(f"Failed to remove temp file {prompt_file}: {e}")
         
         print(f"Command completed with return code: {result.returncode}")
         print(f"stdout length: {len(result.stdout)}, stderr length: {len(result.stderr)}")
@@ -241,21 +253,37 @@ def generate_sse_response(command: str, directory: str, include_errors: bool = T
             print(" 🔄 INCLUDING ERROR CONTEXT IN CLAUDE PROMPT (SSE) 🔄 ".center(80, "="))
             print("=" * 80 + "\n")
 
-        claude_command = (
-            f'claude -p --dangerously-skip-permissions --output-format "stream-json" "{modified_command}"'
-        )
-        print(f"Executing command: {claude_command} in directory: {directory}")
+        # Get shell environment
+        shell_env = get_shell_env()
+        env = {**os.environ, **shell_env}
+        
+        # Create a temporary file with the prompt content
+        import tempfile
+        with tempfile.NamedTemporaryFile(mode='w', delete=False, suffix='.txt') as temp_file:
+            temp_file.write(modified_command)
+            prompt_file = temp_file.name
+        
+        # Use cat to pipe the prompt content to claude
+        claude_command = f'cat "{prompt_file}" | claude -p --dangerously-skip-permissions --output-format "stream-json"'
+        print(f"Using command: {claude_command}")
+        print(f"Prompt length: {len(modified_command)}")
+        print(f"Using temp file: {prompt_file}")
+        print(f"In directory: {directory}")
 
         process = subprocess.Popen(
             claude_command,
             cwd=directory,
-            shell=False,
+            shell=True,
+            env=env,
             stdout=subprocess.PIPE,
             stderr=subprocess.PIPE,
             text=True,
             bufsize=1,
             universal_newlines=True,
         )
+        
+        # We'll clean up the temp file after the process completes
+        temp_files_to_clean = [prompt_file]
 
         all_outputs = []
 
@@ -274,8 +302,26 @@ def generate_sse_response(command: str, directory: str, include_errors: bool = T
 
         # Send final event
         yield f"data: {json.dumps({'stdout': '', 'stderr': '', 'allOutputs': all_outputs, 'success': True, 'exitCode': process.returncode})}\n\n"
+        
+        # Clean up the temporary file
+        try:
+            for temp_file in temp_files_to_clean:
+                os.unlink(temp_file)
+                print(f"Removed temp file: {temp_file}")
+        except Exception as clean_err:
+            print(f"Failed to remove temp file: {clean_err}")
 
     except Exception as e:
+        # Try to clean up temp files even on exception
+        try:
+            if 'temp_files_to_clean' in locals():
+                for temp_file in temp_files_to_clean:
+                    if os.path.exists(temp_file):
+                        os.unlink(temp_file)
+                        print(f"Removed temp file on error: {temp_file}")
+        except Exception as clean_err:
+            print(f"Failed to remove temp file on error: {clean_err}")
+            
         yield f"data: {json.dumps({'error': str(e), 'success': False})}\n\n"
 
 
@@ -350,10 +396,14 @@ def clear_errors():
         recent_errors.clear()
         
         # Update the error count file
-        script_dir = os.path.dirname(os.path.abspath(__file__))
-        error_count_path = os.path.join(script_dir, "error_count.txt")
-        with open(error_count_path, "w") as f:
-            f.write("0")
+        try:
+            script_dir = os.path.dirname(os.path.abspath(__file__))
+            error_count_path = os.path.join(script_dir, "error_count.txt")
+            with open(error_count_path, "w") as f:
+                f.write("0")
+            print(f"Updated error count file to 0 at {error_count_path}")
+        except Exception as write_err:
+            print(f"Could not update error count file: {write_err}")
             
         print("\n" + "=" * 80)
         print(" 🧹 ERRORS MANUALLY CLEARED 🧹 ".center(80, "="))
