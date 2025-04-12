@@ -113,7 +113,8 @@
             <h2>Command Terminal</h2>
             <div class="controls">
                 <input type="text" id="command" placeholder="Enter command (e.g., ls -la)" value="ls -la">
-                <button id="start">Start Command</button>
+                <button id="start">Start Command (Stream)</button>
+                <button id="startNonStream">Start Command (Non-Stream)</button>
                 <button id="stop">Stop</button>
             </div>
             
@@ -126,6 +127,7 @@
         const outputDiv = document.getElementById('output');
         const commandInput = document.getElementById('command');
         const startButton = document.getElementById('start');
+        const startNonStreamButton = document.getElementById('startNonStream');
         const stopButton = document.getElementById('stop');
         const fileListDiv = document.getElementById('file-list');
         const currentPathDiv = document.getElementById('current-path');
@@ -329,6 +331,56 @@
             }
         }
         
+        async function startNonStreamCommand() {
+            clearOutput();
+            updateStatus('Connecting...');
+            
+            const command = commandInput.value.trim();
+            if (!command) {
+                appendOutput('Please enter a command', 'stderr');
+                updateStatus('Ready');
+                return;
+            }
+            
+            try {
+                // Make a POST request to the /prompt endpoint
+                console.log('Making non-stream request...');
+                const response = await fetch('/prompt', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        command,
+                        directory: currentDirectory
+                    })
+                });
+                
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+                
+                const data = await response.json();
+                
+                if (data.stdout) {
+                    appendOutput(data.stdout, 'stdout');
+                }
+                
+                if (data.stderr) {
+                    appendOutput(data.stderr, 'stderr');
+                }
+                
+                if (data.error) {
+                    appendOutput(`Error: ${data.error}`, 'stderr');
+                }
+                
+                updateStatus('Command completed');
+            } catch (error) {
+                appendOutput(`Error: ${error.message}`, 'stderr');
+                updateStatus('Error occurred');
+            }
+        }
+        
         function stopCommand() {
             if (controller) {
                 controller.abort();
@@ -341,6 +393,7 @@
         initFileBrowser();
         
         startButton.addEventListener('click', startCommand);
+        startNonStreamButton.addEventListener('click', startNonStreamCommand);
         stopButton.addEventListener('click', stopCommand);
     </script>
 </body>
