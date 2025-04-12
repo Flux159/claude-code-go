@@ -1,53 +1,34 @@
 const { exec } = require('child_process');
 const { promisify } = require('util');
-const path = require('path');
 const execAsync = promisify(exec);
 
 async function main() {
     try {
-        // Get path to Python script
-        const pythonScript = path.join(__dirname, 'test-claude.py');
-        console.log('Running Python script:', pythonScript);
+        const command = 'claude -p --dangerously-skip-permissions --output-format "stream-json" "ls -la"';
+        console.log('Running command:', command);
         
-        // Run Python script with environment variables
-        const { stdout, stderr } = await execAsync(`python3 ${pythonScript}`, {
-            env: {
-                ...process.env,
-                PATH: process.env.PATH,
-                HOME: process.env.HOME,
-                SHELL: process.env.SHELL,
-                TERM: process.env.TERM
-            },
-            timeout: 60000 // 60 second timeout
+        // Set a timeout to prevent hanging
+        const timeout = 30000; // 30 seconds
+        
+        // Create a promise that rejects after the timeout
+        const timeoutPromise = new Promise((_, reject) => {
+            setTimeout(() => {
+                reject(new Error(`Command timed out after ${timeout}ms`));
+            }, timeout);
         });
         
-        if (stdout) {
-            console.log('Python script output:');
-            console.log(stdout);
-            
-            // Try to extract and parse the JSON responses
-            const jsonLines = stdout.split('\n').filter(line => line.trim().startsWith('{'));
-            for (const line of jsonLines) {
-                try {
-                    const jsonData = JSON.parse(line);
-                    console.log('\nParsed JSON response:');
-                    console.log(JSON.stringify(jsonData, null, 2));
-                } catch (e) {
-                    // Skip lines that aren't valid JSON
-                }
-            }
-        }
+        // Run the command with a timeout
+        const result = await Promise.race([
+            execAsync(command),
+            timeoutPromise
+        ]);
         
-        if (stderr) {
-            console.error('Python script errors:');
-            console.error(stderr);
-        }
+        console.log('Command completed successfully');
+        console.log('stdout:', result.stdout);
+        if (result.stderr) console.log('stderr:', result.stderr);
         
     } catch (error) {
-        console.error('Error running Python script:', error.message);
-        if (error.code === 'ETIMEDOUT') {
-            console.error('Script timed out after 60 seconds');
-        }
+        console.error('Error:', error.message);
     }
 }
 
