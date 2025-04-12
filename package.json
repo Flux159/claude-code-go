@@ -10,8 +10,8 @@
     "web": "expo start --web",
     "test": "jest --watchAll",
     "lint": "expo lint",
-    "server": "tsx server/main.ts",
-    "server-python": "./server-python",
+    "server-typescript": "tsx server/main.ts",
+    "server": "./server-python",
     "postinstall": "./postinstall"
   },
   "jest": {
