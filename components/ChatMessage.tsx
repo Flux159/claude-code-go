@@ -3,6 +3,7 @@ import { Platform, StyleSheet, View } from 'react-native';
 
 import { Collapsible } from '@/components/Collapsible';
 import { Message } from '@/contexts/AppContext';
+import { useColorScheme } from '@/hooks/useColorScheme';
 import { useThemeColor } from '@/hooks/useThemeColor';
 import { ThemedText } from './ThemedText';
 import { ThemedView } from './ThemedView';
@@ -96,7 +97,33 @@ export const LoadingDots = () => {
     "Musing",
     "Synthesizing",
     "Deducing",
-    "Prognosticating"
+    "Prognosticating",
+    "Reasoning",
+    "Simulating",
+    "Extrapolating",
+    "Theorizing",
+    "Comprehending",
+    "Scrutinizing",
+    "Deciphering",
+    "Formulating",
+    "Hypothesizing",
+    "Inferring",
+    "Puzzling",
+    "Studying",
+    "Estimating",
+    "Correlating",
+    "Visualizing",
+    "Conceptualizing",
+    "Associating",
+    "Reckoning",
+    "Discerning",
+    "Exploring",
+    "Connecting",
+    "Generating",
+    "Integrating",
+    "Systemizing",
+    "Unraveling",
+    "Assessing"
   ];
   
   const waitingEmojis = [
@@ -105,7 +132,14 @@ export const LoadingDots = () => {
     "🚀", "🌟", "🧿", "🦢", "🔥", "🧪", "🧮", "🦾", 
     "🌌", "🧲", "🦚", "🦄", "🐙", "🧸", "🪐", "🎲",
     "🎭", "🐢", "🦇", "🦋", "🦜", "🦁", "🎨", "🎧",
-    "🧫", "🔆", "🛸", "🎪", "🦔", "🌈", "🐿️", "☄️"
+    "🧫", "🔆", "🛸", "🎪", "🦔", "🌈", "🐿️", "☄️",
+    "🌋", "✨", "🔬", "🌊", "🍄", "🌻", "🦝", "🐸",
+    "🕰️", "🔭", "🤖", "👽", "🧙", "🧝", "🧞", "🦖",
+    "🐌", "🕸️", "🦒", "🐬", "🦩", "🦊", "🦡", "🦫",
+    "🐳", "🦦", "🦥", "🦢", "🦗", "🦎", "🐝", "🦅",
+    "🪶", "🪵", "🦂", "🕳️", "🎓", "🎡", "🧩", "🎠",
+    "🧵", "🎁", "📚", "💡", "🥽", "⚗️", "🧿", "🧶",
+    "🔧", "⌛", "📝", "🏺", "🧨", "🌠", "💫", "🍀"
   ];
   
   const [currentWordIndex, setCurrentWordIndex] = useState(
@@ -153,6 +187,12 @@ export function ChatMessage({ message, toolResultsMap = {} }: ChatMessageProps) 
   const userBubbleColor = useThemeColor({}, 'userBubble');
   const assistantBubbleColor = useThemeColor({}, 'assistantBubble');
   const systemBubbleColor = useThemeColor({}, 'background');
+  const colorScheme = useColorScheme();
+  
+  // Get theme colors for code blocks
+  const codeBlockBg = useThemeColor({}, 'codeBlock');
+  const codeBorderColor = useThemeColor({}, 'codeBorder');
+  const dividerColor = useThemeColor({}, 'divider');
 
   // Format the timestamp
   const formattedTime = message.timestamp.toLocaleTimeString([], {
@@ -236,7 +276,13 @@ export function ChatMessage({ message, toolResultsMap = {} }: ChatMessageProps) 
             <Collapsible key={item.key} title={item.name || 'Tool'}>
               {/* Input section */}
               {/* Input section - compact */}
-              <View style={styles.codeBlock}>
+              <View style={[
+                styles.codeBlock, 
+                { 
+                  backgroundColor: codeBlockBg,
+                  borderColor: codeBorderColor
+                }
+              ]}>
                 <ThemedText selectable={true} style={[styles.toolResult, styles.scrollableText]}>
                   <ThemedText style={styles.toolHeader}>Input:</ThemedText>{'\n'}
                   {typeof item.input === 'object'
@@ -246,10 +292,16 @@ export function ChatMessage({ message, toolResultsMap = {} }: ChatMessageProps) 
               </View>
 
               {/* Divider */}
-              <View style={styles.divider} />
+              <View style={[styles.divider, { backgroundColor: dividerColor }]} />
 
               {/* Result section - compact */}
-              <View style={styles.codeBlock}>
+              <View style={[
+                styles.codeBlock, 
+                { 
+                  backgroundColor: codeBlockBg,
+                  borderColor: codeBorderColor
+                }
+              ]}>
                 <ThemedText selectable={true} style={[styles.toolResult, styles.scrollableText]}>
                   <ThemedText style={styles.toolHeader}>Result:</ThemedText>{'\n'}
                   {typeof item.result === 'object'
@@ -263,7 +315,13 @@ export function ChatMessage({ message, toolResultsMap = {} }: ChatMessageProps) 
         case 'tool_call':
           return (
             <Collapsible key={item.key} title={item.name || 'Tool Call'}>
-              <View style={styles.codeBlock}>
+              <View style={[
+                styles.codeBlock, 
+                { 
+                  backgroundColor: codeBlockBg,
+                  borderColor: codeBorderColor
+                }
+              ]}>
                 <ThemedText selectable={true} style={[styles.toolResult, styles.scrollableText]}>
                   {typeof item.input === 'object'
                     ? formatCompactJSON(item.input)
@@ -276,7 +334,13 @@ export function ChatMessage({ message, toolResultsMap = {} }: ChatMessageProps) 
         case 'tool_result':
           return (
             <Collapsible key={item.key} title="Tool Result">
-              <View style={styles.codeBlock}>
+              <View style={[
+                styles.codeBlock, 
+                { 
+                  backgroundColor: codeBlockBg,
+                  borderColor: codeBorderColor
+                }
+              ]}>
                 <ThemedText selectable={true} style={[styles.toolResult, styles.scrollableText]}>
                   {typeof item.content === 'object'
                     ? formatCompactJSON(item.content)
@@ -390,17 +454,14 @@ const styles = StyleSheet.create({
     flexShrink: 1,
   },
   codeBlock: {
-    backgroundColor: '#f5f5f5',
     borderRadius: 4,
     padding: 8,
     width: '100%',
     overflow: 'scroll',
     borderWidth: 1,
-    borderColor: '#e0e0e0',
   },
   divider: {
     height: StyleSheet.hairlineWidth,
-    backgroundColor: '#cccccc80',
     marginVertical: 10,
     width: '100%',
   },

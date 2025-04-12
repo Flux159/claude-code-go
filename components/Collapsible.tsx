@@ -1,4 +1,4 @@
-import { PropsWithChildren, useState } from 'react';
+import { PropsWithChildren, useEffect, useState } from 'react';
 import { StyleSheet, TouchableOpacity, View } from 'react-native';
 
 import { ThemedText } from '@/components/ThemedText';
@@ -7,11 +7,14 @@ import { IconSymbol } from '@/components/ui/IconSymbol';
 import { Colors } from '@/constants/Colors';
 import { useAppContext } from '@/contexts/AppContext';
 import { useColorScheme } from '@/hooks/useColorScheme';
+import { useThemeColor } from '@/hooks/useThemeColor';
 
 export function Collapsible({ children, title }: PropsWithChildren & { title: string }) {
   const [isOpen, setIsOpen] = useState(false);
   const theme = useColorScheme() ?? 'light';
   const { setIsTogglingCollapsible } = useAppContext();
+  const tintColor = useThemeColor({}, 'tint');
+  const textColor = useThemeColor({}, 'text');
 
   const handleToggle = () => {
     setIsTogglingCollapsible(true);
@@ -37,13 +40,11 @@ export function Collapsible({ children, title }: PropsWithChildren & { title: st
             style={{ transform: [{ rotate: isOpen ? '90deg' : '0deg' }] }}
           />
 
-          <ThemedText style={styles.title}>{title}</ThemedText>
+          <ThemedText style={[styles.title, { color: tintColor }]}>{title}</ThemedText>
         </View>
         {isOpen ? (
           <ThemedView style={styles.content}>{children}</ThemedView>
-        ) : (
-          <ThemedText style={styles.preview}>Click to expand</ThemedText>
-        )}
+        ) : null}
       </ThemedView>
     </TouchableOpacity>
   );
@@ -62,7 +63,6 @@ const styles = StyleSheet.create({
   title: {
     fontSize: 14,
     fontWeight: 'bold',
-    color: '#4a7cff',
   },
   preview: {
     marginLeft: 18,
