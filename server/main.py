@@ -171,5 +171,48 @@ def prompt_stream_post():
         }
     )
 
+@app.route('/reset', methods=['POST'])
+def git_reset():
+    try:
+        data = request.get_json()
+        directory = data.get('directory')
+        
+        if not directory:
+            return jsonify({'error': 'Directory path is required'}), 400
+        
+        # Check if directory is a git repository
+        if not os.path.exists(os.path.join(directory, '.git')):
+            return jsonify({'error': 'Not a git repository'}), 400
+        
+        # Run git reset --hard
+        result = subprocess.run(
+            'git reset --hard',
+            cwd=directory,
+            shell=True,
+            capture_output=True,
+            text=True
+        )
+        
+        # Also clean untracked files if desired
+        clean_result = subprocess.run(
+            'git clean -fd',
+            cwd=directory,
+            shell=True,
+            capture_output=True,
+            text=True
+        )
+        
+        return jsonify({
+            'success': result.returncode == 0 and clean_result.returncode == 0,
+            'stdout': result.stdout + clean_result.stdout,
+            'stderr': result.stderr + clean_result.stderr
+        })
+    except Exception as e:
+        return jsonify({
+            'success': False,
+            'error': 'Failed to reset git repository',
+            'details': str(e)
+        }), 500
+
 if __name__ == '__main__':
     app.run(port=3000) 
