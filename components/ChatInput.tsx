@@ -102,16 +102,13 @@ export function ChatInput() {
     // Create the new user message
     const userMessage = `<user>${text}</user>`;
 
-    // Add instructions element
-    const instructions = `<instructions>Respond to the user's last message</instructions>`;
-
     // Build the conversation content
     const conversationContent = previousMessages
-      ? `${previousMessages}\n${userMessage}\n\n${instructions}`
-      : `${userMessage}\n\n${instructions}`;
+      ? `${previousMessages}\n${userMessage}`
+      : userMessage;
 
-    // Wrap everything in conversation tags
-    const prompt = `<conversation>\n${conversationContent}\n</conversation>`;
+    // Wrap conversation in tags and add instructions
+    const prompt = `<conversation>\n${conversationContent}\n</conversation>\n\n<instructions>Respond to the user's last message</instructions>`;
 
     try {
       const response = await fetch(`http://${hostname}:${Constants.serverPort}/prompt`, {
