@@ -33,13 +33,7 @@ const nextConfig: NextConfig = {
   },
   poweredByHeader: false,
   devIndicators: false,
-  allowedDevOrigins: [
-    "http://localhost:3000",
-    "suyogs-macbook-pro.local",
-    "simons-macbook-air-m2.local",
-    "chris-macbook-pro.local",
-    "claybook.local",
-  ],
+  allowedDevOrigins: ["http://localhost:3000", "*"],
 };
 
 export default nextConfig;
