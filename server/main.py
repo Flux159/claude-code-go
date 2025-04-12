@@ -69,6 +69,7 @@ def execute_command():
             directory = str(Path(os.getcwd())) + "/claude-next-app"
             # return jsonify({'error': 'Directory is required'}), 400
 
+        # TODO: FIX this around parsing error - specifically command that has quotes will fail here
         claude_command = f'claude -p --dangerously-skip-permissions --output-format "stream-json" "{command}"'
         print(f"Executing command: {claude_command} in directory: {directory}")
 
