@@ -78,7 +78,8 @@ def execute_command():
             "stream-json",
             command,  # No need for quotes when using list form
         ]
-        print(f"Executing command: {claude_command} in directory: {directory}")
+        print("\n\nRunning command:\n\n")
+        print(command)
 
         # Get shell environment
         shell_env = get_shell_env()
@@ -117,7 +118,8 @@ def generate_sse_response(command: str, directory: str):
             "stream-json",
             command,  # No need for quotes when using list form
         ]
-        print(f"Executing command: {claude_command} in directory: {directory}")
+        print("\n\nRunning command:\n\n")
+        print(command)
 
         process = subprocess.Popen(
             claude_command,
