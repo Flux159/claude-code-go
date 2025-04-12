@@ -164,7 +164,7 @@ if (typeof window !== 'undefined' && !(window as any).__errorMonitorInitialized)
 
   console.log('Error monitoring initialized. Global error capture active.');
   
-  // Report initialization status to the server
+  // Only report initialization status to the server, don't send a test error
   try {
     fetch('/api/error', {
       method: 'POST',
