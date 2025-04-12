@@ -60,7 +60,7 @@ def execute_command():
         if not command:
             return jsonify({'error': 'Command is required'}), 400
         if not directory:
-            directory = str(Path(os.getcwd()).parent) + "/claude-next-app"
+            directory = str(Path(os.getcwd())) + "/claude-next-app"
             # return jsonify({'error': 'Directory is required'}), 400
 
         claude_command = f'claude -p --dangerously-skip-permissions --output-format "stream-json" "{command}"'
