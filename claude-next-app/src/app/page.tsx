@@ -1,6 +1,13 @@
+'use client';
+
+import { ErrorCatcher } from './components/ErrorCatcher';
+
 export default function Home() {
+  // Add ErrorCatcher to ensure error monitoring is active
   return (
-    <main className="flex min-h-screen flex-col items-center justify-center p-6 text-center">
+    <>
+      <ErrorCatcher pageName="HomePage" />
+      <main className="flex min-h-screen flex-col items-center justify-center p-6 text-center">
       <h1 className="mb-4 bg-gradient-to-r from-purple-600 via-pink-500 to-orange-400 bg-clip-text text-4xl font-bold text-transparent">
         Claude Go
       </h1>
@@ -27,6 +34,13 @@ export default function Home() {
         >
           Test Error Handling
         </a>
+        
+        <a
+          href="/debug-page"
+          className="inline-block rounded-lg bg-gradient-to-r from-blue-600 to-cyan-600 px-6 py-3 text-white shadow-lg transition hover:scale-105 hover:shadow-xl"
+        >
+          Debug Connection
+        </a>
       </div>
       
       <div className="mt-12 max-w-lg">
@@ -37,5 +51,6 @@ export default function Home() {
         </p>
       </div>
     </main>
+    </>
   );
 }

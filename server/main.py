@@ -75,6 +75,9 @@ def report_error():
 
         # Add source information
         error_data["source"] = "next-js-app"
+        
+        # Add a unique ID to the error
+        error_data["id"] = f"error-{time.time()}-{len(recent_errors)}"
 
         # Print to console for debugging with highlighting
         print("\n" + "!" * 80)
@@ -87,9 +90,27 @@ def report_error():
         recent_errors.append(error_data)
 
         # Log the count of stored errors
-        print(f"Currently storing {len(recent_errors)} errors for next Claude prompt")
+        error_count = len(recent_errors)
+        print(f"Currently storing {error_count} errors for next Claude prompt")
+        
+        # Create the error_count file in the same directory as this script
+        script_dir = os.path.dirname(os.path.abspath(__file__))
+        error_count_path = os.path.join(script_dir, "error_count.txt")
+        
+        # Add a file system flag for clients to detect errors more reliably
+        try:
+            with open(error_count_path, "w") as f:
+                f.write(str(error_count))
+            print(f"Wrote error count to {error_count_path}")
+        except Exception as write_err:
+            print(f"Could not write error count file: {write_err}")
 
-        return jsonify({"success": True, "stored_errors": len(recent_errors)})
+        return jsonify({
+            "success": True, 
+            "stored_errors": len(recent_errors),
+            "error_count": error_count,
+            "error_count_file": error_count_path
+        })
     except Exception as e:
         print(f"Error handling error report: {str(e)}")
         return jsonify({"error": "Failed to process error report", "details": str(e)}), 500
@@ -98,17 +119,29 @@ def report_error():
 @app.route("/prompt", methods=["POST"])
 def execute_command():
     try:
+        print("\n" + "-"*80)
+        print(" PROMPT REQUEST RECEIVED ".center(80, "-"))
+        
         data = request.get_json()
+        print(f"Request data: {json.dumps(data, indent=2)}")
+        
         command = data.get("command")
         directory = data.get("directory")
         include_errors = data.get("include_errors", True)  # Default to including errors
 
         if not command:
-            return jsonify({"error": "Command is required"}), 400
+            error_msg = "Command is required"
+            print(f"Error: {error_msg}")
+            return jsonify({"error": error_msg}), 400
+            
         if not directory:
-            directory = str(Path(os.getcwd())) + "/claude-next-app"
-            # return jsonify({'error': 'Directory is required'}), 400
+            # Use current directory as fallback
+            directory = str(Path(os.getcwd()))
+            print(f"No directory provided, using current directory: {directory}")
 
+        # Count errors before processing
+        initial_error_count = len(recent_errors)
+        
         # If we have recent errors and they should be included, add them to the command
         modified_command = command
         if include_errors and recent_errors:
@@ -122,9 +155,20 @@ def execute_command():
 
             # Clear the errors after including them
             recent_errors.clear()
+            
+            # Update the error count file to reflect that errors are now cleared
+            try:
+                script_dir = os.path.dirname(os.path.abspath(__file__))
+                error_count_path = os.path.join(script_dir, "error_count.txt")
+                with open(error_count_path, "w") as f:
+                    f.write("0")
+                print(f"Updated error count file to 0 at {error_count_path}")
+            except Exception as write_err:
+                print(f"Could not update error count file: {write_err}")
 
             print("\n" + "=" * 80)
             print(" 🔄 INCLUDING ERROR CONTEXT IN CLAUDE PROMPT 🔄 ".center(80, "="))
+            print(" 🧹 ERRORS CLEARED AFTER INCLUSION 🧹 ".center(80, "="))
             print("=" * 80 + "\n")
 
         claude_command = (
@@ -136,18 +180,39 @@ def execute_command():
         shell_env = get_shell_env()
         env = {**os.environ, **shell_env}
 
+        print(f"Running command with length: {len(claude_command)}")
+        print(f"In directory: {directory}")
+        
         result = subprocess.run(
             claude_command,
             cwd=directory,
             env=env,
-            shell=False,
+            shell=True,  # Changed to True for better reliability
             capture_output=True,
             text=True,
         )
-
-        return jsonify({"stdout": result.stdout, "stderr": result.stderr, "success": True})
+        
+        print(f"Command completed with return code: {result.returncode}")
+        print(f"stdout length: {len(result.stdout)}, stderr length: {len(result.stderr)}")
+        
+        if result.returncode != 0:
+            print(f"Error running command: {result.stderr}")
+        
+        # Include the error count in the response
+        response_data = {
+            "stdout": result.stdout, 
+            "stderr": result.stderr, 
+            "success": result.returncode == 0,
+            "initial_error_count": initial_error_count,
+            "remaining_error_count": len(recent_errors)
+        }
+        return jsonify(response_data)
     except Exception as e:
-        return jsonify({"error": "Failed to execute command", "details": str(e)}), 500
+        error_message = str(e)
+        print(f"Exception in execute_command: {error_message}")
+        import traceback
+        traceback.print_exc()
+        return jsonify({"error": "Failed to execute command", "details": error_message}), 500
 
 
 @app.route("/")
@@ -223,7 +288,9 @@ def prompt_stream_get():
     if not command:
         return jsonify({"error": "Command is required"}), 400
     if not directory:
-        return jsonify({"error": "Directory is required"}), 400
+        # Use current directory as fallback
+        directory = str(Path(os.getcwd()))
+        print(f"No directory provided, using current directory: {directory}")
 
     return Response(
         generate_sse_response(command, directory, include_errors),
@@ -242,7 +309,9 @@ def prompt_stream_post():
     if not command:
         return jsonify({"error": "Command is required"}), 400
     if not directory:
-        return jsonify({"error": "Directory is required"}), 400
+        # Use current directory as fallback
+        directory = str(Path(os.getcwd()))
+        print(f"No directory provided, using current directory: {directory}")
 
     return Response(
         generate_sse_response(command, directory, include_errors),
@@ -254,7 +323,55 @@ def prompt_stream_post():
 @app.route("/errors", methods=["GET"])
 def get_errors():
     """Endpoint to retrieve current stored errors"""
-    return jsonify({"count": len(recent_errors), "errors": list(recent_errors)})
+    error_count = len(recent_errors)
+    
+    if error_count > 0:
+        print("\n" + "!"*80)
+        print(f" 🔔 CLIENT REQUESTED ERROR COUNT: {error_count} PENDING ERRORS READY FOR CLAUDE 🔔 ".center(80, "!"))
+        print("!"*80 + "\n")
+    
+    # Add CORS headers to make sure this endpoint works from any origin
+    response = jsonify({
+        "count": error_count, 
+        "errors": list(recent_errors),
+        "timestamp": time.time()
+    })
+    response.headers.add('Access-Control-Allow-Origin', '*')
+    response.headers.add('Access-Control-Allow-Headers', 'Content-Type')
+    response.headers.add('Access-Control-Allow-Methods', 'GET')
+    return response
+
+
+@app.route("/clear-errors", methods=["POST"])
+def clear_errors():
+    """Endpoint to manually clear all stored errors"""
+    try:
+        # Clear all stored errors
+        recent_errors.clear()
+        
+        # Update the error count file
+        script_dir = os.path.dirname(os.path.abspath(__file__))
+        error_count_path = os.path.join(script_dir, "error_count.txt")
+        with open(error_count_path, "w") as f:
+            f.write("0")
+            
+        print("\n" + "=" * 80)
+        print(" 🧹 ERRORS MANUALLY CLEARED 🧹 ".center(80, "="))
+        print("=" * 80 + "\n")
+        
+        # Add CORS headers to make sure this endpoint works from any origin
+        response = jsonify({
+            "success": True,
+            "message": "All errors cleared successfully",
+            "count": 0
+        })
+        response.headers.add('Access-Control-Allow-Origin', '*')
+        response.headers.add('Access-Control-Allow-Headers', 'Content-Type')
+        response.headers.add('Access-Control-Allow-Methods', 'POST')
+        return response
+    except Exception as e:
+        print(f"Error clearing errors: {str(e)}")
+        return jsonify({"error": "Failed to clear errors", "details": str(e)}), 500
 
 
 @app.route("/reset", methods=["POST"])

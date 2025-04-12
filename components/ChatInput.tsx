@@ -7,6 +7,7 @@ import {
   TouchableOpacity,
   View,
   Text,
+  Alert,
 } from 'react-native';
 
 import { Constants } from '@/constants/Constants';
@@ -16,40 +17,27 @@ import { IconSymbol } from './ui/IconSymbol';
 
 export function ChatInput() {
   const [text, setText] = useState('');
-  const [pendingErrors, setPendingErrors] = useState(0);
-  const { hostname, messages, addMessage, setIsResponseLoading } = useAppContext();
+  const { 
+    hostname, 
+    messages, 
+    addMessage, 
+    setIsResponseLoading,
+    pendingErrorCount,
+    updatePendingErrorCount,
+    clearPendingErrors
+  } = useAppContext();
   const backgroundColor = useThemeColor({}, 'background');
   const textColor = useThemeColor({}, 'text');
   const tintColor = useThemeColor({}, 'tint');
   const errorColor = '#ff6b6b'; // Red color for error indicator
   
-  // Periodically check for pending errors
+  // Check for errors only when component mounts
   useEffect(() => {
-    // Initial check
-    checkForErrors();
+    // Update immediately when component mounts
+    updatePendingErrorCount();
     
-    // Set up interval to check every 5 seconds
-    const intervalId = setInterval(checkForErrors, 5000);
-    
-    // Clean up on unmount
-    return () => clearInterval(intervalId);
-  }, [hostname]);
-  
-  // Function to check for pending errors
-  const checkForErrors = async () => {
-    try {
-      const response = await fetch(`http://${hostname}:${Constants.serverPort}/errors`, {
-        method: 'GET',
-      });
-      
-      if (response.ok) {
-        const data = await response.json();
-        setPendingErrors(data.count || 0);
-      }
-    } catch (error) {
-      console.error('Error checking for pending errors:', error);
-    }
-  };
+    // No interval to avoid too many requests
+  }, []);
 
   const parseJsonResponses = (responseText: string) => {
     try {
@@ -89,22 +77,31 @@ export function ChatInput() {
   };
 
   const handleSend = async () => {
-    // Allow sending even with empty text if there are errors to report
-    if (!text.trim() && pendingErrors === 0) return;
+    // Allow sending if there's text OR if there are pending errors
+    const hasText = text.trim().length > 0;
     
-    // If there's text, add it as a user message
-    if (text.trim()) {
+    // If no text but we have errors, add a default message
+    if (!hasText && pendingErrorCount > 0) {
+      // Add a simple message when sending errors without text
+      addMessage("Please fix these errors", 'user');
+    } else if (!hasText) {
+      // No text and no errors, nothing to send
+      return;
+    } else {
+      // Normal case: we have text to send
       addMessage(text, 'user');
-      setText('');
-    } else if (pendingErrors > 0) {
-      // If no text but errors exist, add a placeholder message
-      addMessage("Please analyze the errors", 'user');
     }
     
-    // Reset pending errors (they'll be included in this prompt)
-    // The server will clear them after including them in the prompt
-    setPendingErrors(0);
+    // Clear input
+    setText('');
 
+    // Clear error count immediately when sending a prompt
+    // This gives immediate UI feedback
+    if (pendingErrorCount > 0) {
+      console.log(`Immediately clearing error count (was ${pendingErrorCount})`);
+      await clearPendingErrors();
+    }
+    
     setIsResponseLoading(true);
 
     // Format conversation history as XML with user/assistant tags
@@ -153,29 +150,57 @@ export function ChatInput() {
     const prompt = `<conversation>\n${conversationContent}\n</conversation>\n\n<instructions>Respond to the user's last message</instructions>`;
 
     try {
+      // No need to update error count before sending
+      
+      // Use hostname from context for server communication
+      // This ensures it works on both physical devices and simulators
+      console.log('Sending request to Claude server:', {
+        url: `http://${hostname}:${Constants.serverPort}/prompt`,
+        messageCount: messages.length,
+        pendingErrorCount,
+        serverPort: Constants.serverPort
+      });
+      
+      const requestBody = {
+        command: commandWithHistory,
+        include_errors: true // Always include errors from Next.js if any exist
+      };
+      
+      console.log('Request body:', JSON.stringify(requestBody).slice(0, 100) + '...');
+      
       const response = await fetch(`http://${hostname}:${Constants.serverPort}/prompt`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({
-          command: prompt
-        }),
+        body: JSON.stringify(requestBody),
       });
 
       if (!response.ok) {
-        throw new Error('Failed to send message to server');
+        const errorText = await response.text();
+        console.error('Server error response:', {
+          status: response.status,
+          statusText: response.statusText,
+          errorText
+        });
+        throw new Error(`Failed to send message to server: ${response.status} ${response.statusText}`);
       }
 
       const responseText = await response.text();
+      console.log('Server response received, length:', responseText.length);
+      
       let data;
       try {
         data = JSON.parse(responseText);
       } catch (error) {
+        console.error('Failed to parse response:', error, 'Response text:', responseText.slice(0, 200));
         setIsResponseLoading(false);
         addMessage('Error: Could not parse server response', 'assistant');
         return;
       }
+      
+      // We've already cleared errors at the start of handleSend
+      // No need to check again here
 
       setIsResponseLoading(false);
 
@@ -195,7 +220,9 @@ export function ChatInput() {
         addMessage('No response from the server.', 'assistant');
       }
     } catch (error) {
+      console.error('Error sending message:', error);
       setIsResponseLoading(false);
+      
       addMessage(`Error: ${error instanceof Error ? error.message : 'Unknown error'}`, 'assistant');
     }
   };
@@ -221,33 +248,40 @@ export function ChatInput() {
             ]}
             value={text}
             onChangeText={setText}
-            placeholder={pendingErrors > 0 
-              ? `Reply to Claude (includes ${pendingErrors} error${pendingErrors > 1 ? 's' : ''})`
+            placeholder={pendingErrorCount > 0 
+              ? `Reply to Claude (or press send to fix ${pendingErrorCount} error${pendingErrorCount > 1 ? 's' : ''})`
               : "Reply to Claude..."}
-            placeholderTextColor={pendingErrors > 0 ? errorColor : "#999"}
+            placeholderTextColor={pendingErrorCount > 0 ? errorColor : "#999"}
             multiline={false}
             returnKeyType="send"
             onSubmitEditing={handleSend}
           />
           
-          {pendingErrors > 0 && (
-            <View style={[styles.errorBadge, { backgroundColor: errorColor }]}>
-              <Text style={styles.errorBadgeText}>{pendingErrors}</Text>
-            </View>
+          {pendingErrorCount > 0 && (
+            <TouchableOpacity 
+              onPress={() => {
+                Alert.alert(
+                  'Clear Errors',
+                  `Clear ${pendingErrorCount} pending error${pendingErrorCount > 1 ? 's' : ''}?`,
+                  [
+                    {text: 'Cancel', style: 'cancel'},
+                    {text: 'Clear', onPress: clearPendingErrors},
+                  ]
+                );
+              }}
+              style={[styles.errorBadge, { backgroundColor: errorColor }]}
+            >
+              <Text style={styles.errorBadgeText}>{pendingErrorCount}</Text>
+            </TouchableOpacity>
           )}
         </View>
         
         <TouchableOpacity
-          style={[
-            styles.sendButton, 
-            { 
-              backgroundColor: tintColor,
-              // Slightly dim the button if no text and only errors
-              opacity: !text.trim() && pendingErrors > 0 ? 0.8 : 1
-            }
-          ]}
+          style={[styles.sendButton, { 
+            backgroundColor: text.trim() || pendingErrorCount > 0 ? tintColor : '#cccccc' // Gray out when disabled
+          }]}
           onPress={handleSend}
-          disabled={!text.trim() && pendingErrors === 0} // Enable if there's text OR errors
+          disabled={!text.trim() && pendingErrorCount === 0} // Enable if there's text OR errors
           hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
         >
           <IconSymbol name="arrow.up" size={20} color="white" />

@@ -1,6 +1,6 @@
 import { Tabs } from 'expo-router';
-import React from 'react';
-import { TouchableOpacity, View } from 'react-native';
+import React, { useEffect, useState } from 'react';
+import { TouchableOpacity, View, Text, StyleSheet } from 'react-native';
 
 import { HapticTab } from '@/components/HapticTab';
 import { IconSymbol } from '@/components/ui/IconSymbol';
@@ -15,8 +15,26 @@ declare global {
 
 export default function TabLayout() {
   const colorScheme = useColorScheme();
-  const { hostname, port, setSettingsVisible, clearMessages } = useAppContext();
+  const { 
+    hostname, 
+    port, 
+    setSettingsVisible, 
+    clearMessages,
+    pendingErrorCount,
+    updatePendingErrorCount
+  } = useAppContext();
   const displayUrl = `${hostname}:${port}`;
+  
+  // Periodically check for errors, but at a lower frequency
+  useEffect(() => {
+    // Check immediately
+    updatePendingErrorCount();
+    
+    // Check less frequently to avoid overwhelming the server
+    const intervalId = setInterval(updatePendingErrorCount, 5000);
+    
+    return () => clearInterval(intervalId);
+  }, []);
 
   return (
     <Tabs
@@ -30,9 +48,27 @@ export default function TabLayout() {
       <Tabs.Screen
         name="index"
         options={{
-          headerTitle: 'Claude Go',
+          headerTitle: () => (
+            <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+              <Text style={{ fontSize: 18, fontWeight: 'bold' }}>Claude Go</Text>
+              {pendingErrorCount > 0 && (
+                <View style={[styles.errorBadge, { position: 'relative', marginLeft: 8, top: 0, right: 0 }]}>
+                  <Text style={styles.errorText}>{pendingErrorCount}</Text>
+                </View>
+              )}
+            </View>
+          ),
           tabBarLabel: 'Chat',
-          tabBarIcon: ({ color }) => <IconSymbol size={28} name="message.fill" color={color} />,
+          tabBarIcon: ({ color }) => (
+            <View>
+              <IconSymbol size={28} name="message.fill" color={color} />
+              {pendingErrorCount > 0 && (
+                <View style={styles.errorBadge}>
+                  <Text style={styles.errorText}>{pendingErrorCount}</Text>
+                </View>
+              )}
+            </View>
+          ),
           headerRight: () => (
             <View style={{ flexDirection: 'row' }}>
               <TouchableOpacity
@@ -122,3 +158,25 @@ export default function TabLayout() {
     </Tabs>
   );
 }
+
+// Add styles for the error badge
+const styles = StyleSheet.create({
+  errorBadge: {
+    position: 'absolute',
+    right: -6,
+    top: -6,
+    backgroundColor: '#ff6b6b',
+    borderRadius: 10,
+    width: 20,
+    height: 20,
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderWidth: 2,
+    borderColor: 'white',
+  },
+  errorText: {
+    color: 'white',
+    fontSize: 12,
+    fontWeight: 'bold',
+  },
+});
