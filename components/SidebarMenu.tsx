@@ -43,7 +43,7 @@ export function SidebarMenu({ isVisible, onClose }: SidebarMenuProps) {
   const opacity = useRef(new Animated.Value(0)).current;
   const [localVisible, setLocalVisible] = useState(isVisible);
   const [activeTab, setActiveTab] = useState<MenuTab>("files");
-  
+
   // FileTree props
   const { hostname, currentDirectory, setCurrentDirectory } = useAppContext();
   const PYTHON_PORT = Constants.serverPort;
@@ -51,7 +51,7 @@ export function SidebarMenu({ isVisible, onClose }: SidebarMenuProps) {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState("");
   const [initialDirectory, setInitialDirectory] = useState("");
-  
+
   // ChatHistory props
   const {
     chats,
@@ -386,7 +386,7 @@ export function SidebarMenu({ isVisible, onClose }: SidebarMenuProps) {
           <ThemedText type="title" style={styles.title}>
             {activeTab === "files" ? "Project Files" : "Chat History"}
           </ThemedText>
-          
+
           <View style={styles.headerButtons}>
             {activeTab === "chats" && (
               <>
@@ -399,7 +399,7 @@ export function SidebarMenu({ isVisible, onClose }: SidebarMenuProps) {
                 >
                   <IconSymbol name="plus.square" size={20} color={tintColor} />
                 </TouchableOpacity>
-                
+
                 <TouchableOpacity
                   onPress={() => {
                     if (Platform.OS === "web") {
@@ -427,7 +427,7 @@ export function SidebarMenu({ isVisible, onClose }: SidebarMenuProps) {
                 </TouchableOpacity>
               </>
             )}
-            
+
             <TouchableOpacity onPress={onClose} style={styles.closeButton}>
               <IconSymbol name="xmark" size={20} color={tintColor} />
             </TouchableOpacity>
@@ -457,7 +457,7 @@ export function SidebarMenu({ isVisible, onClose }: SidebarMenuProps) {
               Files
             </ThemedText>
           </TouchableOpacity>
-          
+
           <TouchableOpacity
             style={[
               styles.tabButton,
@@ -520,7 +520,7 @@ export function SidebarMenu({ isVisible, onClose }: SidebarMenuProps) {
               <View style={styles.errorContainer}>
                 <ThemedText style={styles.errorText}>{error}</ThemedText>
                 <TouchableOpacity
-                  style={[styles.retryButton, { backgroundColor: tintColor }]}
+                  style={styles.retryButton}
                   onPress={() =>
                     currentDirectory
                       ? loadDirectory(currentDirectory)
@@ -580,7 +580,7 @@ export function SidebarMenu({ isVisible, onClose }: SidebarMenuProps) {
                       key={item.path + index}
                       style={styles.fileItem}
                     >
-                      <IconSymbol name="doc.text" size={16} color={tintColor} style={{opacity: 0.3}} />
+                      <IconSymbol name="doc.text" size={16} color={tintColor} style={{ opacity: 0.3 }} />
                       <ThemedText
                         style={[styles.fileName, styles.dimmedText]}
                         numberOfLines={1}
@@ -720,7 +720,7 @@ const styles = StyleSheet.create({
     alignItems: "center",
   },
   closeButton: {
-    padding: 4,
+    padding: 8,
   },
   actionButton: {
     padding: 8,
@@ -846,18 +846,18 @@ const styles = StyleSheet.create({
     padding: 20,
   },
   errorText: {
-    color: "#ff6b6b",
+    color: "#999",
     marginBottom: 20,
     textAlign: "center",
   },
   retryButton: {
-    paddingVertical: 8,
-    paddingHorizontal: 16,
-    borderRadius: 4,
+    backgroundColor: "#FF6B6B",
+    borderRadius: 5,
+    paddingVertical: 10,
+    paddingHorizontal: 20,
   },
   retryButtonText: {
     color: "white",
-    fontWeight: "bold",
   },
   emptyContainer: {
     padding: 20,
