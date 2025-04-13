@@ -1,5 +1,3 @@
-import Link from 'next/link';
-
 export default function Home() {
   return (
     <main className="flex min-h-screen flex-col items-center justify-center p-6 text-center">
@@ -10,24 +8,10 @@ export default function Home() {
         This is a sample Next.js application that you can edit live using
         Claude.
       </p>
-      <p className="mb-6 max-w-lg text-lg text-gray-600 dark:text-gray-400">
+      <p className="max-w-lg text-lg text-gray-600 dark:text-gray-400">
         Try asking Claude to modify this page, add new features, or create
         entirely new components!
       </p>
-      
-      <div className="mt-4 flex flex-col gap-4 sm:flex-row">
-        <div className="group rounded-lg border border-transparent px-5 py-4 transition-colors hover:border-gray-300 hover:bg-gray-100 hover:dark:border-neutral-700 hover:dark:bg-neutral-800/30">
-          <h2 className="mb-3 text-2xl font-semibold flex items-center gap-2">
-            Get Started{' '}
-            <span className="inline-block transition-transform group-hover:translate-x-1 motion-reduce:transform-none text-purple-500">
-              →
-            </span>
-          </h2>
-          <p className="m-0 max-w-[30ch] text-sm opacity-70">
-            Modify this page or create new components to explore the app.
-          </p>
-        </div>
-      </div>
     </main>
   );
 }
