@@ -43,6 +43,7 @@ export const useSpeechRecognition = () => {
   }, []);
 
   // --- Check Permissions ---
+  /*
   useEffect(() => {
     const checkPermissions = async () => {
       if (!isMounted.current) return;
@@ -81,6 +82,7 @@ export const useSpeechRecognition = () => {
 
     checkPermissions();
   }, []); // Run only on mount
+*/
 
   // --- Action Functions ---
   const startRecording = async () => {

@@ -279,6 +279,7 @@ export function ChatInput() {
 
         <View style={styles.buttonContainer}>
           {/* Voice input button */}
+          {/*
           <TouchableOpacity
             style={[
               styles.iconButton,
@@ -308,6 +309,7 @@ export function ChatInput() {
               />
             )}
           </TouchableOpacity>
+          */}
 
           {/* Send button */}
           <TouchableOpacity
