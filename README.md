@@ -36,11 +36,12 @@ npm run server
 
 To use the app on your phone, install [Expo Go](https://apps.apple.com/us/app/expo-go/id982107779) and use the QR code that appears from `npm run start` to get the app. (Use [Expo Go on Google Play](https://play.google.com/store/apps/details?id=host.exp.exponent&hl=en_US) for android).
 
-To login via your local network on your phone, use the hostname or IP address of the computer you've setup the claude-code-go server on, your username on that PC or Mac, and the password in the server/passwd file. 
+To login via your local network on your phone, use the hostname or IP address of the computer you've setup the claude-code-go server on, your username on that PC or Mac, and the password in the `~/.claudecodego/passwd` file - if you don't specify a password there, then the default password is "password123".
 
-You should change the default password before starting the server. 
+You should absolutely change the default password before starting the server.
 
 Inside of the app, you can go to Settings -> Web Preview and use a command to run your web app for previews built in from there. By default it's setup to run:
+
 ```shell
 npm run dev
 ```
