@@ -188,6 +188,8 @@ export function AppProvider({ children }: AppProviderProps) {
 
         // Load saved chats
         const savedChats = await AsyncStorage.getItem(CHATS_STORAGE_KEY);
+        console.log("saved chats from storage");
+        console.log(savedChats);
         if (savedChats) {
           // Parse chats and convert string dates back to Date objects
           const parsedChats: Chat[] = JSON.parse(savedChats);
@@ -304,18 +306,20 @@ export function AppProvider({ children }: AppProviderProps) {
         );
 
         if (currentChatIndex >= 0) {
-          // Save current messages to the current chat before creating a new one
+          // Important: Save complete current messages to the current chat before creating a new one
+          console.log(
+            `Saving ${messages.length} messages to chat ${currentChatId} before creating new chat`
+          );
+          
           const updatedChats = [...chats];
           updatedChats[currentChatIndex] = {
             ...updatedChats[currentChatIndex],
-            messages: [...messages],
+            messages: [...messages], // Save the complete messages array
           };
 
-          // Just update storage, don't set state yet
+          // Update both state and storage to ensure consistency
+          setChats(updatedChats);
           saveChatsToStorage(updatedChats);
-          console.log(
-            `Saved existing conversation with ${messages.length} messages before creating new chat`
-          );
         }
       } catch (error) {
         console.error(
@@ -374,26 +378,20 @@ export function AppProvider({ children }: AppProviderProps) {
         );
 
         if (currentChatIndex >= 0) {
-          // Save the current messages to the current chat before switching
+          // Important: Always save the complete current messages state
+          // This ensures we don't lose any messages with tool calls
+          console.log(
+            `Saving ${messages.length} messages to chat ${currentChatId} before switching`
+          );
+          
           const updatedChats = [...chats];
           const currentChat = { ...updatedChats[currentChatIndex] };
-
-          // Only update if necessary - if messages are different
-          const chatHasAllMessages =
-            currentChat.messages &&
-            messages.every((msg) =>
-              currentChat.messages.some((chatMsg) => chatMsg.id === msg.id)
-            );
-
-          if (!chatHasAllMessages) {
-            console.log(
-              `Saving ${messages.length} messages to current chat before switching`
-            );
-            currentChat.messages = [...messages];
-            updatedChats[currentChatIndex] = currentChat;
-            setChats(updatedChats);
-            saveChatsToStorage(updatedChats);
-          }
+          
+          // Always update with complete messages array to ensure we don't lose any messages
+          currentChat.messages = [...messages];
+          updatedChats[currentChatIndex] = currentChat;
+          setChats(updatedChats);
+          saveChatsToStorage(updatedChats);
         }
       }
 
@@ -567,10 +565,41 @@ export function AppProvider({ children }: AppProviderProps) {
 
     // First, immediately update the local messages for UI responsiveness
     // This ensures the message shows immediately in the chat
-    setMessages((prevMessages) => [...prevMessages, newMessage]);
+    setMessages((prevMessages) => {
+      const updatedMessages = [...prevMessages, newMessage];
+      
+      // Store updated messages in the current chat
+      try {
+        if (currentChatId && chats && chats.length > 0) {
+          const currentChatIndex = chats.findIndex(
+            (chat) => chat && chat.id === currentChatId
+          );
+          
+          if (currentChatIndex >= 0) {
+            const updatedChats = [...chats];
+            const currentChat = { ...updatedChats[currentChatIndex] };
+            
+            // Important: Update with the complete messages array including the new message
+            currentChat.messages = updatedMessages;
+            updatedChats[currentChatIndex] = currentChat;
+            
+            // Update state and storage
+            setChats(updatedChats);
+            saveChatsToStorage(updatedChats);
+            console.log(
+              `Updated chat ${currentChatId} with all messages, now has ${updatedMessages.length} messages`
+            );
+          }
+        }
+      } catch (error) {
+        console.error("Error syncing updated messages to chat:", error);
+      }
+      
+      return updatedMessages;
+    });
 
     try {
-      // Then handle chat persistence
+      // Handle chat persistence
       if (!currentChatId || !chats || chats.length === 0) {
         // If there's no current chat, create one with this message
         const now = new Date();
