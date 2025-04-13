@@ -1,4 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
+import { useFocusEffect } from '@react-navigation/native';
 import { ActivityIndicator, Platform, SafeAreaView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { WebView } from 'react-native-webview';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -46,14 +47,14 @@ export default function WebPreviewScreen() {
 
   useEffect(() => {
     global.webViewRef = webViewRef;
-    
+
     // Make server status and control methods available globally
     global.webServerStatus = {
       isRunning: status?.running || false,
       checkStatus: checkServerStatus,
       startServer: startServer,
     };
-    
+
     return () => {
       global.webViewRef = null;
       global.webServerStatus = null;
@@ -64,19 +65,34 @@ export default function WebPreviewScreen() {
   useEffect(() => {
     // Check immediately
     checkServerStatus();
-    
+
     // Then check every 10 seconds
     const intervalId = setInterval(checkServerStatus, 10000);
-    
+
     return () => clearInterval(intervalId);
   }, []);
-  
+
   // Check server status when error occurs - with immediate check
   useEffect(() => {
     if (error) {
       checkServerStatus();
     }
   }, [error]);
+
+  // Refresh the WebView when the screen comes into focus
+  useFocusEffect(
+    React.useCallback(() => {
+      if (webViewRef.current) {
+        webViewRef.current.injectJavaScript(`
+          if (typeof window.location.reload === 'function') {
+            window.location.reload(false); // false means reload from cache
+          }
+          true;
+        `);
+      }
+      return () => { };
+    }, [])
+  );
 
   const url = `http://${hostname}:${port}`;
   const displayUrl = `${hostname}:${port}`;
@@ -123,21 +139,21 @@ export default function WebPreviewScreen() {
   const startServer = async () => {
     try {
       setIsStarting(true);
-      
+
       // Always use the claude-next-app directory for the web server
       // This is where the Next.js app lives and has package.json with npm run dev
       let serverDirectory;
-      
+
       // If the current directory contains claude-next-app, use it directly
       if (currentDirectory?.includes('claude-next-app')) {
         serverDirectory = currentDirectory;
-      } 
+      }
       // Otherwise use the root project directory + claude-next-app
       else if (currentDirectory) {
         // Extract the project root - go up to the claude-code-go root if possible
         const parts = currentDirectory.split('/');
         const claudeCodeGoIndex = parts.findIndex(part => part === 'claude-code-go');
-        
+
         if (claudeCodeGoIndex >= 0) {
           // Rebuild the path up to claude-code-go and add claude-next-app
           const rootPath = parts.slice(0, claudeCodeGoIndex + 1).join('/');
@@ -169,15 +185,15 @@ export default function WebPreviewScreen() {
             'Content-Type': 'application/json',
             'Authorization': token ? `Bearer: ${token}` : '',
           },
-          body: JSON.stringify({ 
-            command: webCommand, 
-            directory: serverDirectory 
+          body: JSON.stringify({
+            command: webCommand,
+            directory: serverDirectory
           }),
         }
       );
 
       console.log('Server start response status:', response.status);
-      
+
       if (response.ok) {
         try {
           const data = await response.json();
@@ -185,13 +201,13 @@ export default function WebPreviewScreen() {
         } catch (e) {
           console.log('Could not parse response JSON:', e);
         }
-        
+
         // Wait a bit to give the server time to start
         await new Promise(resolve => setTimeout(resolve, 3000));
-        
+
         // After starting the server, check status and reload webview
         await checkServerStatus();
-        
+
         // Only if status shows running, reload the webview
         if (status?.running && webViewRef.current) {
           console.log('Reloading WebView after server started');
@@ -201,7 +217,7 @@ export default function WebPreviewScreen() {
           // Try one more status check after a delay
           await new Promise(resolve => setTimeout(resolve, 2000));
           await checkServerStatus();
-          
+
           if (status?.running && webViewRef.current) {
             console.log('Reloading WebView after second status check');
             webViewRef.current.reload();
@@ -228,13 +244,13 @@ export default function WebPreviewScreen() {
     // If the current directory contains claude-next-app, use it directly
     if (currentDirectory?.includes('claude-next-app')) {
       return currentDirectory;
-    } 
+    }
     // Otherwise use the root project directory + claude-next-app
     else if (currentDirectory) {
       // Extract the project root - go up to the claude-code-go root if possible
       const parts = currentDirectory.split('/');
       const claudeCodeGoIndex = parts.findIndex(part => part === 'claude-code-go');
-      
+
       if (claudeCodeGoIndex >= 0) {
         // Rebuild the path up to claude-code-go and add claude-next-app
         const rootPath = parts.slice(0, claudeCodeGoIndex + 1).join('/');
@@ -252,32 +268,32 @@ export default function WebPreviewScreen() {
   // Render the server start dialog
   const renderServerStartDialog = () => {
     const serverDirectory = getServerDirectory();
-    
+
     // If server is actually running but WebView had an error
     if (status?.running) {
       return (
         <ThemedView style={styles.dialogContainer}>
           <ThemedText style={styles.dialogTitle}>Connection Error</ThemedText>
-          
+
           <View style={styles.statusIndicator}>
             <View style={[styles.statusDot, { backgroundColor: '#4CAF50' }]} />
             <ThemedText style={styles.statusText}>Server is running</ThemedText>
           </View>
-          
+
           <ThemedText style={styles.dialogMessage}>
             The server is running but the WebView cannot connect to {displayUrl}.
           </ThemedText>
-          
+
           <ThemedText style={styles.dialogTip}>
             Possible reasons:
           </ThemedText>
-          
+
           <View style={styles.tipsList}>
             <ThemedText style={styles.tipItem}>• The server is still starting up</ThemedText>
             <ThemedText style={styles.tipItem}>• Wrong hostname or port settings</ThemedText>
             <ThemedText style={styles.tipItem}>• Server is listening on a different interface</ThemedText>
           </View>
-          
+
           <TouchableOpacity
             style={[styles.startButton, { backgroundColor: tintColor }]}
             onPress={() => {
@@ -291,25 +307,25 @@ export default function WebPreviewScreen() {
         </ThemedView>
       );
     }
-    
+
     // Normal server not running dialog
     return (
       <ThemedView style={styles.dialogContainer}>
         <ThemedText style={styles.dialogTitle}>Server Not Running</ThemedText>
-        
+
         <View style={styles.statusIndicator}>
           <View style={[styles.statusDot, { backgroundColor: '#F44336' }]} />
           <ThemedText style={styles.statusText}>Server is stopped</ThemedText>
         </View>
-        
+
         <ThemedText style={styles.dialogMessage}>
           The web server at {displayUrl} is not responding.
         </ThemedText>
-        
+
         <ThemedText style={styles.commandText}>
           Command: <ThemedText style={styles.commandHighlight}>{webCommand}</ThemedText>
         </ThemedText>
-        
+
         <ThemedText style={styles.directoryText}>
           Using directory: <ThemedText style={styles.directoryHighlight}>
             {serverDirectory}
@@ -348,10 +364,10 @@ export default function WebPreviewScreen() {
     const openServerSettings = () => {
       setSettingsVisible(true);
     };
-    
+
     // Attach the listener to the global scope for the server button to trigger
     global.openWebPreviewSettings = openServerSettings;
-    
+
     // Clean up the listener when component unmounts
     return () => {
       global.openWebPreviewSettings = undefined;
@@ -381,11 +397,11 @@ export default function WebPreviewScreen() {
             </ThemedView>
           )}
         </View>
-        
+
         {/* Web Preview Settings Modal */}
-        <WebPreviewSettings 
-          visible={settingsVisible} 
-          onClose={() => setSettingsVisible(false)} 
+        <WebPreviewSettings
+          visible={settingsVisible}
+          onClose={() => setSettingsVisible(false)}
         />
       </ThemedView>
     </SafeAreaView>
