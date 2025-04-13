@@ -1,6 +1,6 @@
 import { Tabs } from "expo-router";
 import React, { useEffect, useState } from "react";
-import { TouchableOpacity, View, Text, StyleSheet } from "react-native";
+import { TouchableOpacity, View, Text, StyleSheet, Dimensions, PanResponder } from "react-native";
 
 import { HapticTab } from "@/components/HapticTab";
 import { IconSymbol } from "@/components/ui/IconSymbol";
@@ -45,6 +45,30 @@ export default function TabLayout() {
     return () => clearInterval(intervalId);
   }, []);
 
+  // Create a pan responder for swipe detection
+  const panResponder = React.useRef(
+    PanResponder.create({
+      onStartShouldSetPanResponder: (evt, gestureState) => true,
+      onStartShouldSetPanResponderCapture: (evt, gestureState) => true,
+      onMoveShouldSetPanResponder: (evt, gestureState) => {
+        // Only respond to horizontal movements starting from left edge
+        const { dx, dy, moveX } = gestureState;
+        return moveX < 50 && Math.abs(dx) > Math.abs(dy) && dx > 20;
+      },
+      onPanResponderGrant: (evt, gestureState) => {
+        console.log("Pan responder granted:", gestureState.x0, gestureState.y0);
+      },
+      onPanResponderMove: (evt, gestureState) => {
+        // If swiping right from the left edge
+        if (gestureState.dx > 50) {
+          console.log("Opening menu from swipe:", gestureState.dx);
+          setFileTreeVisible(true);
+        }
+      },
+      onPanResponderRelease: () => {},
+    })
+  ).current;
+
   return (
     <>
       <SidebarMenu
@@ -54,7 +78,15 @@ export default function TabLayout() {
           setChatHistoryVisible(false);
         }}
       />
-      <Tabs
+      
+      <View style={{ flex: 1 }}>
+        {/* Swipe area to open sidebar menu */}
+        <View
+          style={styles.gestureContainer}
+          {...panResponder.panHandlers}
+        />
+        
+        <Tabs
         screenOptions={{
           tabBarActiveTintColor: Colors[colorScheme ?? "light"].tint,
           headerShown: true,
@@ -306,11 +338,12 @@ export default function TabLayout() {
           }}
         />
       </Tabs>
+      </View>
     </>
   );
 }
 
-// Add styles for the error badge
+// Add styles for the error badge and gesture container
 const styles = StyleSheet.create({
   errorBadge: {
     position: "absolute",
@@ -329,5 +362,15 @@ const styles = StyleSheet.create({
     color: "white",
     fontSize: 12,
     fontWeight: "bold",
+  },
+  gestureContainer: {
+    position: 'absolute', 
+    top: 0,
+    left: 0,
+    bottom: 0,
+    width: 50, // Match the edgeWidth
+    zIndex: 100,
+    // Uncomment to debug:
+    // backgroundColor: 'rgba(255,0,0,0.1)',
   },
 });
