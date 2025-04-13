@@ -21,17 +21,21 @@ Make sure that you have installed & run [claude code](https://docs.anthropic.com
 claude --dangerously-skip-permissions
 ```
 
-Then, run the following command to install dependencies:
+Then, clone the repo & run the following command to install dependencies:
 
 ```shell
 npm install
 ```
 
-In 3 different terminal sessions, run the following commands:
+In 2 different terminal sessions, run the following commands:
 
 ```shell
 npm run start
 npm run server
+```
+
+Inside of the app, you can go to Settings -> Web Preview and use a command to run your web app for previews built in from there. By default it's setup to run:
+```shell
 npm run dev
 ```
 
