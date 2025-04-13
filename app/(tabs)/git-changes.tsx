@@ -38,7 +38,7 @@ interface GitDiff {
 }
 
 // Expose fetchGitStatus globally
-let globalFetchGitStatus: (() => Promise<void>) | null = null;
+global.fetchGitStatus = null as unknown as (() => Promise<void>) | null;
 
 export default function GitChangesScreen() {
   const { hostname, currentDirectory } = useAppContext();
@@ -405,9 +405,9 @@ export default function GitChangesScreen() {
 
   // Set global function reference
   useEffect(() => {
-    globalFetchGitStatus = fetchGitStatus;
+    global.fetchGitStatus = fetchGitStatus;
     return () => {
-      globalFetchGitStatus = null;
+      global.fetchGitStatus = null;
     };
   }, [fetchGitStatus]);
 
@@ -563,7 +563,7 @@ export default function GitChangesScreen() {
     if (!diff) {
       return (
         <View style={styles.loadingContainer}>
-          <ActivityIndicator size="large" color={tintColor} />
+          <ActivityIndicator />
           <ThemedText style={styles.loadingText}>Loading diff...</ThemedText>
         </View>
       );
@@ -611,10 +611,7 @@ export default function GitChangesScreen() {
         {/* Loading state */}
         {isLoading ? (
           <View style={styles.loadingContainer}>
-            <ActivityIndicator size="large" color={tintColor} />
-            <ThemedText style={styles.loadingText}>
-              Loading Git status...
-            </ThemedText>
+            <ActivityIndicator />
           </View>
         ) : (
           <TouchableOpacity

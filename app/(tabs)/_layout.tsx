@@ -15,7 +15,7 @@ import { ChatHistory } from "@/components/ChatHistory";
 
 declare global {
   var webViewRef: any;
-  var globalFetchGitStatus: (() => Promise<void>) | null;
+  var fetchGitStatus: (() => Promise<void>) | null;
 }
 
 export default function TabLayout() {
@@ -325,8 +325,8 @@ export default function TabLayout() {
                   }}
                   onPress={() => {
                     // Call the global fetchGitStatus function if available
-                    if (typeof globalFetchGitStatus === 'function') {
-                      globalFetchGitStatus();
+                    if (typeof global.fetchGitStatus === 'function') {
+                      global.fetchGitStatus();
                     }
                   }}
                   hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
