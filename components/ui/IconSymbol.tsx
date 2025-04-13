@@ -29,6 +29,8 @@ const MAPPING = {
   "doc.text": "description",
   trash: "delete",
   xmark: "close",
+  "arrow.down.circle.fill": "arrow_circle_down",
+  "arrow.down": "arrow_downward",
 } as Partial<
   Record<
     import("expo-symbols").SymbolViewProps["name"],
