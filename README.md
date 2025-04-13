@@ -34,6 +34,10 @@ npm run start
 npm run server
 ```
 
+To login via your local network on your phone, use the hostname or IP address of the computer you've setup the claude-code-go server on, your username on that PC or Mac, and the password in the server/passwd file. 
+
+You should change the default password before starting the server. 
+
 Inside of the app, you can go to Settings -> Web Preview and use a command to run your web app for previews built in from there. By default it's setup to run:
 ```shell
 npm run dev
