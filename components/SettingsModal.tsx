@@ -125,10 +125,6 @@ export function SettingsModal({ visible, onClose }: SettingsModalProps) {
             Settings
           </ThemedText>
 
-          <ThemedText type="subtitle" style={styles.sectionTitle}>
-            General
-          </ThemedText>
-
           {/* User account information */}
           <View style={styles.accountSection}>
             {username ? (
