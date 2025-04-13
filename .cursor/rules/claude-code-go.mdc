@@ -1,0 +1,133 @@
+---
+description: 
+globs: 
+alwaysApply: false
+---
+# Claude Code Go
+
+## Setup Instructions
+
+1. Clone the repository:
+```
+git clone https://github.com/Flux159/claude-code-go
+cd claude-code-go
+```
+
+2. Install and set up Claude Code CLI first:
+```
+claude --dangerously-skip-permissions
+```
+
+3. Install dependencies:
+```
+npm install
+```
+
+## Running the App
+
+For full functionality, run these commands in separate terminals:
+
+1. Start the mobile app:
+```
+npm run start  # Mobile app (includes --tunnel by default)
+```
+Or run directly with:
+```
+npx expo start --tunnel
+```
+
+2. Start the Python server:
+```
+npm run server  # Python server on port 8142
+```
+
+3. Start the Next.js web preview:
+```
+npm run dev  # Next.js web preview on port 3000
+```
+
+## Mobile Connectivity
+
+If you get an error on Android like:
+```
+Uncaught Error: java.io.IOException: Failed to download remote update
+```
+Use the `--tunnel` flag as shown above for remote connections.
+
+For iOS devices, the tunnel mode is also recommended for better connectivity.
+
+## Project Overview
+
+Claude Code on Mobile (aka Claude Code Go or Claude Code On-The-Go) is a mobile app that lets you:
+- Browse directories on your development machine
+- Run prompts (text input or dictation) using Claude Code
+- Make git commits/PRs in git/sapling directories
+- View dev builds via proxy
+
+### Architecture
+
+The application consists of three main components:
+
+1. **Mobile App (Expo/React Native)**
+   - Chat UI with conversation history
+   - Directory browser and file explorer
+   - Text and voice input capabilities
+   - Settings for server connection
+
+2. **Python Server**
+   - Runs on port 8142
+   - Proxies requests to the Claude CLI
+   - Directory browsing and file operations
+   - Uses Server-Sent Events (SSE) for streaming responses
+
+3. **Next.js Web App**
+   - Runs on port 3000
+   - Provides a web preview interface
+   - Renders development site
+
+### Key Features
+
+- Directory navigation and file browsing
+- Text/voice prompts to Claude
+- Git integration for commits/PRs
+- Development server preview
+- Streaming JSON response format
+- Persistent conversation history
+- Mobile-friendly interface
+
+### Workflow
+
+1. Browse project directories
+2. Send prompts to Claude (text or voice)
+3. Claude returns results in streaming JSON format
+4. Review and apply changes
+5. Commit changes to git/sapling if needed
+6. Preview changes in the development server
+
+### Troubleshooting
+
+1. **Connection Issues**
+   - Ensure all three components are running
+   - Check that hostname/port settings match in settings
+   - Verify Claude CLI is properly installed and configured
+
+2. **Claude Command Issues**
+   - Run `claude --dangerously-skip-permissions` in terminal first
+   - Ensure Python environment has necessary permissions
+   - Check server logs for Claude CLI errors
+
+3. **Expo/React Native Issues**
+   - Use `--tunnel` flag for remote connections (not ios specific commands)
+   - Clear cache with `npx expo start -c` if needed
+   - Check for compatible Expo SDK versions
+
+### Future Roadmap
+
+- Authentication and remote server connections
+- Custom dev server commands and ports
+- Voice input/output improvements
+- New project creation
+- Server restart capability
+- Standard HTTP API for other clients (VSCode, etc.)
+- MCP server integration
+- App Store publication
