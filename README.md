@@ -2,7 +2,7 @@
 
 Mobile app for claude code.
 
-https://github.com/user-attachments/assets/572cc927-2af6-4af9-88bc-2b16e07f3344
+https://github.com/user-attachments/assets/44ea735b-bd89-46c8-9833-85fea59cee40
 
 ## Getting started
 
