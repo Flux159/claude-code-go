@@ -8,12 +8,14 @@ import {
   View,
   Text,
   Alert,
+  ActivityIndicator,
 } from "react-native";
 
 import { Constants } from "@/constants/Constants";
 import { useAppContext } from "@/contexts/AppContext";
 import { useThemeColor } from "@/hooks/useThemeColor";
 import { IconSymbol } from "./ui/IconSymbol";
+import { useSpeechRecognition } from "@/hooks/useSpeechRecognition";
 
 export function ChatInput() {
   const [text, setText] = useState("");
@@ -30,7 +32,30 @@ export function ChatInput() {
   const backgroundColor = useThemeColor({}, "background");
   const textColor = useThemeColor({}, "text");
   const tintColor = useThemeColor({}, "tint");
-  const errorColor = "#ff6b6b"; // Red color for error indicator
+  const errorColor = "#ff6b6b";
+  const processingColor = "#f0ad4e"; // Orange for processing
+
+  // Use the new audio recording hook
+  const {
+    status,
+    error: recordingError,
+    toggleRecording,
+    cancelRecording,
+    transcribedText,
+  } = useSpeechRecognition();
+
+  // Determine if the mic button should be disabled
+  const isMicDisabled =
+    status !== "ready" && status !== "recording" && status !== "stopped";
+  const isRecording = status === "recording";
+  const isProcessing = status === "processing";
+
+  // Append transcribed text when it arrives
+  useEffect(() => {
+    if (transcribedText) {
+      setText((prev) => prev + transcribedText);
+    }
+  }, [transcribedText]);
 
   // Check for errors only when component mounts
   useEffect(() => {
@@ -39,6 +64,15 @@ export function ChatInput() {
 
     // No interval to avoid too many requests
   }, []);
+
+  // Display any speech recognition errors
+  useEffect(() => {
+    if (recordingError) {
+      console.error("Speech recognition error:", recordingError);
+      // Don't show an error alert for every error - just log it
+      // If needed, we could add an unobtrusive error indicator here
+    }
+  }, [recordingError]);
 
   const parseJsonResponses = (responseText: string) => {
     try {
@@ -78,26 +112,13 @@ export function ChatInput() {
   };
 
   const handleSend = async () => {
-    // Allow sending if there's text OR if there are pending errors
-    const hasText = text.trim().length > 0;
+    const currentText = text.trim();
+    if (!currentText && pendingErrorCount === 0) return; // Nothing to send
 
-    // If no text but we have errors, add a default message
-    if (!hasText && pendingErrorCount > 0) {
-      // Add a simple message when sending errors without text
-      addMessage("Please fix these errors", "user");
-    } else if (!hasText) {
-      // No text and no errors, nothing to send
-      return;
-    } else {
-      // Normal case: we have text to send
-      addMessage(text, "user");
-    }
-
-    // Clear input
+    const messageToSend = currentText ? currentText : "Please fix these errors";
+    addMessage(messageToSend, "user");
     setText("");
 
-    // Clear error count immediately when sending a prompt
-    // This gives immediate UI feedback
     if (pendingErrorCount > 0) {
       console.log(
         `Immediately clearing error count (was ${pendingErrorCount})`
@@ -147,100 +168,40 @@ export function ChatInput() {
       .filter(Boolean) // Remove null entries
       .join("\n");
 
-    // Determine which message to send
-    // If we have no input text but have errors, use our default message
-    // Otherwise use the actual input text
-    let messageToSend = hasText ? text : "Please fix these errors";
-
-    const userMessage = `<user>${messageToSend}</user>`;
-
-    // Build the conversation content
-    const conversationContent = previousMessages
-      ? `${previousMessages}\n${userMessage}`
-      : userMessage;
-
-    // Wrap conversation in tags and add instructions
-    // Redefining this to fix the "Property 'commandWithHistory' doesn't exist" error
-    const commandWithHistory = `<conversation>\n${conversationContent}\n</conversation>\n\n<instructions>Respond to the user's last message</instructions>`;
-
+    // Construct previousMessages, commandWithHistory, requestBody etc.
+    // Fetch call to `http://${hostname}:${Constants.serverPort}/prompt`
+    // Handle response: parseJsonResponses, addMessage("assistant"), setIsResponseLoading(false)
+    // This part needs to be restored or ensured it exists from previous versions
     try {
-      // No need to update error count before sending
+      const userMessage = `<user>${messageToSend}</user>`;
+      const conversationContent = previousMessages
+        ? `${previousMessages}\n${userMessage}`
+        : userMessage;
+      const commandWithHistory = `<conversation>\n${conversationContent}\n</conversation>\n\n<instructions>Respond to the user's last message</instructions>`;
 
-      // Use hostname from context for server communication
-      // This ensures it works on both physical devices and simulators
-      console.log("Sending request to Claude server:", {
-        url: `http://${hostname}:${Constants.serverPort}/prompt`,
-        messageCount: messages.length,
-        pendingErrorCount,
-        serverPort: Constants.serverPort,
-      });
-
-      // Define with explicit type to ensure TypeScript recognizes the structure
-      const requestBody: {
-        command: string;
-        include_errors: boolean;
-        directory?: string;
-      } = {
+      const requestBody = {
         command: commandWithHistory,
-        include_errors: true, // Always include errors from Next.js if any exist
+        include_errors: true,
+        directory: currentDirectory || undefined,
       };
 
-      // Include the current directory if it exists
-      if (currentDirectory) {
-        requestBody.directory = currentDirectory;
-        console.log(`Using directory from file explorer: ${currentDirectory}`);
-      }
-
-      console.log(
-        "Request body:",
-        JSON.stringify(requestBody).slice(0, 100) + "..."
-      );
-
+      console.log(`Sending prompt to ${hostname}...`);
       const response = await fetch(
         `http://${hostname}:${Constants.serverPort}/prompt`,
         {
           method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
+          headers: { "Content-Type": "application/json" },
           body: JSON.stringify(requestBody),
         }
       );
 
       if (!response.ok) {
         const errorText = await response.text();
-        console.error("Server error response:", {
-          status: response.status,
-          statusText: response.statusText,
-          errorText,
-        });
-        throw new Error(
-          `Failed to send message to server: ${response.status} ${response.statusText}`
-        );
+        throw new Error(`Server error: ${response.status} - ${errorText}`);
       }
 
       const responseText = await response.text();
-      console.log("Server response received, length:", responseText.length);
-
-      let data;
-      try {
-        data = JSON.parse(responseText);
-      } catch (error) {
-        console.error(
-          "Failed to parse response:",
-          error,
-          "Response text:",
-          responseText.slice(0, 200)
-        );
-        setIsResponseLoading(false);
-        addMessage("Error: Could not parse server response", "assistant");
-        return;
-      }
-
-      // We've already cleared errors at the start of handleSend
-      // No need to check again here
-
-      setIsResponseLoading(false);
+      const data = JSON.parse(responseText); // Assuming server sends JSON
 
       if (data.stdout) {
         const parsedResponses = parseJsonResponses(data.stdout);
@@ -253,18 +214,15 @@ export function ChatInput() {
           }
         }
       } else if (data.stderr) {
-        addMessage(`Error: ${data.stderr}`, "assistant");
+        addMessage(`Server Error: ${data.stderr}`, "assistant");
       } else {
-        addMessage("No response from the server.", "assistant");
+        addMessage("Received empty response from server.", "assistant");
       }
-    } catch (error) {
-      console.error("Error sending message:", error);
+    } catch (error: any) {
+      console.error("Error sending prompt:", error);
+      addMessage(`Error: ${error.message}`, "assistant");
+    } finally {
       setIsResponseLoading(false);
-
-      addMessage(
-        `Error: ${error instanceof Error ? error.message : "Unknown error"}`,
-        "assistant"
-      );
     }
   };
 
@@ -272,120 +230,231 @@ export function ChatInput() {
 
   return (
     <KeyboardAvoidingView
-      behavior={Platform.OS === "ios" ? "padding" : undefined}
-      keyboardVerticalOffset={96}
+      behavior={Platform.OS === "ios" ? "padding" : "height"}
+      keyboardVerticalOffset={Platform.OS === "ios" ? 90 : 0} // Adjust offset as needed
+      style={[styles.container, { backgroundColor }]}
     >
-      <View style={[styles.container, { borderTopColor: "#cccccc80" }]}>
-        <View style={styles.inputContainer}>
+      {/* Error Banners */}
+      {pendingErrorCount > 0 && (
+        <View style={styles.errorBanner}>
+          <IconSymbol
+            name="exclamationmark.triangle"
+            size={16}
+            color={errorColor}
+            style={styles.errorIcon}
+          />
+          <View style={styles.errorTextContainer}>
+            <Text style={styles.errorText}>
+              {pendingErrorCount} error{pendingErrorCount !== 1 ? "s" : ""}{" "}
+              detected
+            </Text>
+            <Text style={styles.errorSubText}>Tap send to generate fixes</Text>
+          </View>
+        </View>
+      )}
+      {recordingError && (
+        <View style={[styles.errorBanner, styles.voiceErrorBanner]}>
+          <IconSymbol
+            name="exclamationmark.triangle"
+            size={16}
+            color={errorColor}
+            style={styles.errorIcon}
+          />
+          <Text style={[styles.errorText, { flex: 1 }]}>{recordingError}</Text>
+        </View>
+      )}
+
+      {/* Input Row */}
+      <View style={styles.inputRow}>
+        <View style={[styles.inputContainer, { backgroundColor }]}>
           <TextInput
-            style={[
-              styles.input,
-              {
-                backgroundColor,
-                color: textColor,
-                borderColor:
-                  Platform.OS === "ios" ? "#cccccc80" : "transparent",
-                borderWidth: StyleSheet.hairlineWidth,
-              },
-            ]}
+            style={[styles.input, { color: textColor }]}
+            placeholder="Message Claude..."
+            placeholderTextColor="#888"
             value={text}
             onChangeText={setText}
-            placeholder={
-              pendingErrorCount > 0
-                ? `Reply to Claude (or press send to fix ${pendingErrorCount} error${
-                    pendingErrorCount > 1 ? "s" : ""
-                  })`
-                : "Reply to Claude..."
-            }
-            placeholderTextColor={pendingErrorCount > 0 ? errorColor : "#999"}
-            multiline={false}
-            returnKeyType="send"
-            onSubmitEditing={handleSend}
+            multiline
           />
+        </View>
 
-          {pendingErrorCount > 0 && (
-            <TouchableOpacity
-              onPress={() => {
-                Alert.alert(
-                  "Clear Errors",
-                  `Clear ${pendingErrorCount} pending error${
-                    pendingErrorCount > 1 ? "s" : ""
-                  }?`,
-                  [
-                    { text: "Cancel", style: "cancel" },
-                    { text: "Clear", onPress: clearPendingErrors },
-                  ]
-                );
-              }}
-              style={[styles.errorBadge, { backgroundColor: errorColor }]}
-            >
-              <Text style={styles.errorBadgeText}>{pendingErrorCount}</Text>
+        <View style={styles.buttonContainer}>
+          {/* Voice input button */}
+          {/*
+          <TouchableOpacity
+            style={[
+              styles.iconButton,
+              isRecording && styles.iconButtonRecording,
+              isProcessing && styles.iconButtonProcessing,
+              isMicDisabled && styles.disabledButton,
+              {
+                backgroundColor: isRecording
+                  ? "#ffdddd"
+                  : isProcessing
+                  ? "#fff3cd"
+                  : backgroundColor,
+              },
+            ]}
+            onPress={toggleRecording}
+            disabled={isMicDisabled || isProcessing} // Disable while processing too
+          >
+            {isProcessing ? (
+              <ActivityIndicator size="small" color={processingColor} />
+            ) : (
+              <IconSymbol
+                name={isRecording ? "stop.fill" : "mic.fill"}
+                size={20}
+                color={
+                  isRecording ? errorColor : isMicDisabled ? "#888" : tintColor
+                }
+              />
+            )}
+          </TouchableOpacity>
+          */}
+
+          {/* Send button */}
+          <TouchableOpacity
+            style={[
+              styles.iconButton,
+              { backgroundColor },
+              !text.trim() && pendingErrorCount === 0 && styles.disabledButton,
+            ]}
+            onPress={handleSend}
+            disabled={!text.trim() && pendingErrorCount === 0}
+          >
+            <IconSymbol
+              name="paperplane.fill"
+              size={20}
+              color={
+                !text.trim() && pendingErrorCount === 0 ? "#888" : tintColor
+              }
+            />
+          </TouchableOpacity>
+        </View>
+      </View>
+
+      {/* Combined Recording/Processing Indicator Bar */}
+      {(isRecording || isProcessing) && (
+        <View style={styles.indicatorBar}>
+          <ActivityIndicator
+            size="small"
+            color={isRecording ? errorColor : processingColor}
+          />
+          <Text style={styles.indicatorText}>
+            {isRecording ? "Recording audio..." : "Processing audio..."}
+          </Text>
+          {isRecording && ( // Show cancel only during recording
+            <TouchableOpacity onPress={cancelRecording}>
+              <Text style={styles.cancelText}>Cancel</Text>
             </TouchableOpacity>
           )}
         </View>
-
-        <TouchableOpacity
-          style={[
-            styles.sendButton,
-            {
-              backgroundColor:
-                text.trim() || pendingErrorCount > 0 ? tintColor : "#cccccc", // Gray out when disabled
-            },
-          ]}
-          onPress={handleSend}
-          disabled={!text.trim() && pendingErrorCount === 0} // Enable if there's text OR errors
-          hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-        >
-          <IconSymbol name="arrow.up" size={20} color="white" />
-        </TouchableOpacity>
-      </View>
+      )}
     </KeyboardAvoidingView>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
-    flexDirection: "row",
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderTopWidth: 1,
+    borderTopColor: "#2a2a2a",
+  },
+  errorBanner: {
+    backgroundColor: "#ff6b6b20",
     padding: 10,
+    borderRadius: 8,
+    marginBottom: 8,
+    flexDirection: "row",
     alignItems: "center",
-    borderTopWidth: StyleSheet.hairlineWidth,
-    borderTopColor: "#ccc", // Default color, will be overridden by inline style
+  },
+  voiceErrorBanner: {
+    backgroundColor: "#ff6b6b40", // Make voice errors slightly more prominent
+  },
+  errorIcon: {
+    marginRight: 8,
+  },
+  errorTextContainer: {
+    flex: 1,
+  },
+  errorText: {
+    color: "#ff6b6b",
+    fontWeight: "bold",
+  },
+  errorSubText: {
+    color: "#ff6b6b80",
+    fontSize: 12,
+  },
+  inputRow: {
+    flexDirection: "row",
+    alignItems: "flex-end",
+    marginBottom: 8, // Add margin below input row
   },
   inputContainer: {
     flex: 1,
-    position: "relative",
-    marginRight: 10,
+    borderWidth: 1,
+    borderColor: "#444",
+    borderRadius: 20,
+    paddingLeft: 16,
+    paddingRight: 12,
+    paddingTop: Platform.OS === "ios" ? 10 : 8,
+    paddingBottom: Platform.OS === "ios" ? 10 : 8,
+    marginRight: 8,
+    maxHeight: 120,
+    justifyContent: "center", // Center placeholder vertically
   },
   input: {
-    flex: 1,
-    borderRadius: 20,
-    paddingVertical: 10,
-    paddingHorizontal: 16,
-    maxHeight: 100,
-    width: "100%",
-    paddingRight: 40, // Make room for the error badge
+    fontSize: 16,
+    lineHeight: 20,
+    paddingVertical: 0, // Remove default padding if handled by container
   },
-  errorBadge: {
-    position: "absolute",
-    right: 8,
-    top: "50%",
-    marginTop: -10,
-    width: 20,
-    height: 20,
-    borderRadius: 10,
-    justifyContent: "center",
-    alignItems: "center",
+  buttonContainer: {
+    flexDirection: "row",
+    gap: 8,
+    alignItems: "flex-end", // Align buttons to bottom
+    paddingBottom: 2, // Fine-tune alignment with text input
   },
-  errorBadgeText: {
-    color: "white",
-    fontSize: 12,
-    fontWeight: "bold",
-  },
-  sendButton: {
+  iconButton: {
     width: 40,
     height: 40,
     borderRadius: 20,
+    borderWidth: 1,
+    borderColor: "#444",
     justifyContent: "center",
     alignItems: "center",
+  },
+  iconButtonRecording: {
+    borderColor: "#ff6b6b", // Use direct value or reference styles.errorColor
+    backgroundColor: "#ffdddd",
+  },
+  iconButtonProcessing: {
+    borderColor: "#f0ad4e", // Use direct value or reference styles.processingColor
+    backgroundColor: "#fff3cd",
+  },
+  disabledButton: {
+    opacity: 0.5,
+    borderColor: "#555",
+  },
+  // Indicator Bar below input row
+  indicatorBar: {
+    flexDirection: "row",
+    alignItems: "center",
+    paddingVertical: 6,
+    paddingHorizontal: 10,
+    marginTop: 4,
+    backgroundColor: "#333333", // Darker background for contrast
+    borderRadius: 15,
+  },
+  indicatorText: {
+    marginLeft: 10,
+    color: "#eee", // Light text
+    flex: 1,
+    fontSize: 13,
+  },
+  cancelText: {
+    color: "#ff6b6b", // Use direct value or reference styles.errorColor
+    fontWeight: "bold",
+    fontSize: 13,
+    marginLeft: 10,
   },
 });
