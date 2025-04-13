@@ -1,199 +1,236 @@
-import { useState, useEffect } from "react";
-import Voice, {
-  SpeechResultsEvent,
-  SpeechErrorEvent,
-} from "@react-native-voice/voice";
-import { Platform, PermissionsAndroid } from "react-native";
+import { useState, useEffect, useRef } from "react";
+import { Platform } from "react-native";
+// No direct imports from expo-speech-recognition are needed
+
+// Use expo-av for permissions
+import { Audio, InterruptionModeIOS, InterruptionModeAndroid } from "expo-av";
+
+// Define state for recording status
+type RecordingStatus =
+  | "idle"
+  | "requestingPermission"
+  | "checkingAvailability"
+  | "ready"
+  | "recording"
+  | "stopped" // Recording finished, ready to process or start new
+  | "processing" // Uploading/Transcribing
+  | "error";
 
 export const useSpeechRecognition = () => {
-  const [isListening, setIsListening] = useState(false);
-  const [speechText, setSpeechText] = useState("");
-  const [hasPermission, setHasPermission] = useState(false);
+  const [status, setStatus] = useState<RecordingStatus>("idle");
   const [error, setError] = useState<string | null>(null);
-  const [isInitialized, setIsInitialized] = useState(false);
+  // Use a ref for the recording instance to avoid potential state update races
+  const recordingRef = useRef<Audio.Recording | null>(null);
+  const [recordingUri, setRecordingUri] = useState<string | null>(null); // URI of the completed recording
+  const [transcribedText, setTranscribedText] = useState<string>(""); // Text from cloud STT
+  const isMounted = useRef(true);
 
   useEffect(() => {
-    const checkPermissions = async () => {
-      try {
-        if (Platform.OS === "android") {
-          const granted = await PermissionsAndroid.request(
-            PermissionsAndroid.PERMISSIONS.RECORD_AUDIO,
-            {
-              title: "Microphone Permission",
-              message:
-                "Claude Code Go needs access to your microphone to transcribe speech",
-              buttonNeutral: "Ask Me Later",
-              buttonNegative: "Cancel",
-              buttonPositive: "OK",
-            }
+    // Cleanup function to set mounted status
+    return () => {
+      isMounted.current = false;
+      // Stop and unload recording if active on unmount
+      if (recordingRef.current) {
+        console.log("Unloading recording instance on unmount...");
+        recordingRef.current
+          .stopAndUnloadAsync()
+          .catch((e) =>
+            console.error("Error unloading recording on unmount:", e)
           );
-          setHasPermission(granted === PermissionsAndroid.RESULTS.GRANTED);
-        } else {
-          // iOS will handle permissions via the native prompt
-          setHasPermission(true);
-        }
-      } catch (err) {
-        setError("Permission check failed");
-        console.error("Permission check error:", err);
+        recordingRef.current = null;
       }
     };
+  }, []);
 
-    // Initialize Voice library
-    const initializeVoice = async () => {
+  // --- Check Permissions ---
+  useEffect(() => {
+    const checkPermissions = async () => {
+      if (!isMounted.current) return;
+      setStatus("requestingPermission");
       try {
-        // Always destroy any existing instance first
-        await Voice.destroy();
-        await Voice.removeAllListeners();
-
-        // Platform-specific setup
-        if (Platform.OS === "android") {
-          console.log("Platform-specific handling for Android");
-          // Android requires specific initialization (nothing extra for now)
-        } else if (Platform.OS === "ios") {
-          console.log("Platform-specific handling for iOS");
-          // iOS-specific setup if needed
+        console.log("Requesting microphone permissions via expo-av...");
+        const { status: permissionStatus } =
+          await Audio.requestPermissionsAsync();
+        if (!isMounted.current) return;
+        if (permissionStatus === "granted") {
+          setStatus("ready");
+          setError(null);
+          console.log("Microphone permission granted.");
+          // Configure audio mode for recording (important for iOS)
+          await Audio.setAudioModeAsync({
+            allowsRecordingIOS: true,
+            playsInSilentModeIOS: true,
+            interruptionModeIOS: InterruptionModeIOS.DoNotMix,
+            shouldDuckAndroid: true,
+            interruptionModeAndroid: InterruptionModeAndroid.DoNotMix,
+            playThroughEarpieceAndroid: false,
+          });
+        } else {
+          console.warn("Microphone permission denied.");
+          setError("Microphone permission denied.");
+          setStatus("error");
         }
-
-        Voice.onSpeechStart = () => {
-          console.log("Speech started");
-        };
-
-        Voice.onSpeechEnd = () => {
-          console.log("Speech ended");
-          setIsListening(false);
-        };
-
-        Voice.onSpeechResults = (e: SpeechResultsEvent) => {
-          console.log("Speech results received", Platform.OS, e.value);
-          if (e.value && e.value.length > 0) {
-            setSpeechText(e.value[0]);
-          }
-        };
-
-        Voice.onSpeechError = (e: SpeechErrorEvent) => {
-          console.error("Speech error:", e);
-          const errorMessage =
-            Platform.OS === "android"
-              ? `Error code: ${e.error?.code}`
-              : e.error?.message || "Unknown error";
-          setError(`Speech recognition error: ${errorMessage}`);
-          setIsListening(false);
-        };
-
-        setIsInitialized(true);
-      } catch (err) {
-        console.error("Voice initialization error:", err);
-        setError("Failed to initialize speech recognition");
+      } catch (err: any) {
+        console.error("Error requesting microphone permissions:", err);
+        if (isMounted.current) {
+          setError(`Failed request permissions: ${err.message || err}`);
+          setStatus("error");
+        }
       }
     };
 
     checkPermissions();
-    initializeVoice();
+  }, []); // Run only on mount
 
-    // Clean up listeners when component unmounts
-    return () => {
-      if (isListening) {
-        stopListening();
-      }
-      Voice.destroy()
-        .then(() => {
-          console.log("Voice instance destroyed");
-        })
-        .catch((e) => {
-          console.error("Error destroying Voice instance:", e);
-        });
-    };
-  }, []);
+  // --- Action Functions ---
+  const startRecording = async () => {
+    // Allow starting only if ready or stopped (after processing/cancel)
+    if (status !== "ready" && status !== "stopped") {
+      console.log(`Cannot start recording in status: ${status}`);
+      return;
+    }
 
-  const startListening = async () => {
+    // Ensure any lingering instance is unloaded (safety check)
+    if (recordingRef.current) {
+      console.warn(
+        "Lingering recording instance found before start, unloading..."
+      );
+      await recordingRef.current
+        .stopAndUnloadAsync()
+        .catch((e) => console.error("Error unloading lingering instance:", e));
+      recordingRef.current = null;
+    }
+
     try {
-      if (!isInitialized) {
-        setError("Speech recognition not initialized yet");
-        return;
+      console.log("Starting audio recording...");
+      setError(null);
+      setRecordingUri(null);
+      setTranscribedText("");
+      setStatus("recording"); // Set status *before* async operation
+
+      await Audio.setAudioModeAsync({
+        // Re-affirm mode just in case
+        allowsRecordingIOS: true,
+        playsInSilentModeIOS: true,
+        interruptionModeIOS: InterruptionModeIOS.DoNotMix,
+        shouldDuckAndroid: true,
+        interruptionModeAndroid: InterruptionModeAndroid.DoNotMix,
+        playThroughEarpieceAndroid: false,
+      });
+
+      const { recording } = await Audio.Recording.createAsync(
+        Audio.RecordingOptionsPresets.HIGH_QUALITY
+      );
+      recordingRef.current = recording; // Store instance in ref
+
+      console.log("Recording started successfully");
+    } catch (err: any) {
+      console.error("Failed to start recording", err);
+      if (isMounted.current) {
+        setError(`Failed to start recording: ${err.message || err}`);
+        setStatus("error");
+        recordingRef.current = null; // Ensure ref is cleared on error
+      }
+    }
+  };
+
+  const stopRecordingAndProcess = async () => {
+    // Check using the ref
+    if (status !== "recording" || !recordingRef.current) {
+      console.log(
+        `Not recording or no instance, cannot stop. Status: ${status}`
+      );
+      return;
+    }
+
+    const recordingToProcess = recordingRef.current; // Capture ref value
+    recordingRef.current = null; // Immediately nullify ref
+    console.log("Stopping recording...");
+
+    try {
+      const uri = recordingToProcess.getURI();
+      console.log("Attempting to stop and unload...");
+      await recordingToProcess.stopAndUnloadAsync();
+      console.log("Recording stopped and unloaded successfully.");
+
+      if (!isMounted.current) return;
+
+      if (!uri) {
+        console.error("Recording URI is null after getting URI.");
+        throw new Error("Recording URI is null after stopping.");
       }
 
-      if (!hasPermission) {
-        if (Platform.OS === "android") {
-          const granted = await PermissionsAndroid.request(
-            PermissionsAndroid.PERMISSIONS.RECORD_AUDIO
-          );
-          if (granted !== PermissionsAndroid.RESULTS.GRANTED) {
-            setError("Microphone permission denied");
-            return;
-          }
-          setHasPermission(true);
-        } else {
-          setError("Microphone permission not granted");
-          return;
-        }
-      }
-
-      setSpeechText("");
+      setRecordingUri(uri); // Keep the URI available if needed elsewhere
+      setStatus("processing");
       setError(null);
 
-      // Make sure we're not already listening
-      if (isListening) {
-        await Voice.stop();
-      }
+      // --- !!! Cloud STT Integration Point !!! ---
+      console.log("Audio recorded to:", uri);
+      console.log(
+        "--> NEXT STEP: Upload this file to a backend/cloud function which calls a Speech-to-Text API (e.g., Google, OpenAI Whisper, AssemblyAI). <---"
+      );
 
-      // Different options based on platform
-      if (Platform.OS === "android") {
-        console.log("Starting Android voice recognition");
-        try {
-          await Voice.start("en-US", {
-            EXTRA_LANGUAGE_MODEL: "LANGUAGE_MODEL_FREE_FORM",
-            EXTRA_MAX_RESULTS: 5,
-            EXTRA_PARTIAL_RESULTS: true,
-            EXTRA_SPEECH_INPUT_MINIMUM_LENGTH_MILLIS: 500,
-            EXTRA_SPEECH_INPUT_COMPLETE_SILENCE_LENGTH_MILLIS: 1500,
-            EXTRA_SPEECH_INPUT_POSSIBLY_COMPLETE_SILENCE_LENGTH_MILLIS: 1000,
-          });
-          setIsListening(true);
-        } catch (err) {
-          console.error("Android voice recognition error:", err);
-          setError(`Android voice error: ${err}`);
-        }
-      } else {
-        console.log("Starting iOS voice recognition");
-        await Voice.start("en-US");
-        setIsListening(true);
+      // Simulate delay and provide placeholder text indicating need for cloud API
+      await new Promise((resolve) => setTimeout(resolve, 1000)); // Shorter delay
+      if (isMounted.current) {
+        setTranscribedText("[Cloud STT needed for transcription] "); // Updated placeholder
+        setStatus("stopped");
+        console.log("Placeholder shown. Implement cloud STT call here.");
       }
-    } catch (err) {
-      console.error("Failed to start speech recognition:", err);
-      setError("Failed to start speech recognition");
-      setIsListening(false);
+      // --- End Integration Point ---
+    } catch (err: any) {
+      console.error("Failed to stop recording or process", err);
+      if (isMounted.current) {
+        setError(`Failed to stop/process recording: ${err.message || err}`);
+        setStatus("error");
+      }
     }
   };
 
-  const stopListening = async () => {
+  const cancelRecording = async () => {
+    // Check ref directly
+    if (!recordingRef.current) {
+      console.log("Cancel ignored: No active recording instance found in ref.");
+      return;
+    }
+
+    console.log("Cancelling recording via ref...");
+    const recordingToCancel = recordingRef.current; // Capture instance
+    recordingRef.current = null; // Nullify ref immediately
+
     try {
-      if (!isInitialized) {
-        return;
-      }
+      await recordingToCancel.stopAndUnloadAsync();
+      console.log("Recording cancelled and unloaded.");
+    } catch (error) {
+      console.error("Error cancelling recording:", error);
+      // Don't set main error state for cancel error, just log
+    }
 
-      console.log(`Stopping ${Platform.OS} voice recognition`);
-      await Voice.stop();
-      setIsListening(false);
-    } catch (err) {
-      console.error("Error stopping speech recognition:", err);
+    // Reset state after cancelling
+    if (isMounted.current) {
+      setStatus("stopped"); // Go to stopped state after cancel
+      setError(null);
+      setRecordingUri(null);
+      setTranscribedText("");
     }
   };
 
-  const toggleListening = async () => {
-    if (isListening) {
-      await stopListening();
+  // Toggle function controls start/stop for the main button
+  const toggleRecording = async () => {
+    if (status === "recording") {
+      await stopRecordingAndProcess();
+    } else if (status === "ready" || status === "stopped") {
+      await startRecording();
     } else {
-      await startListening();
+      console.log(`Toggle ignored in status: ${status}`);
     }
   };
 
   return {
-    isListening,
-    speechText,
-    hasPermission,
+    status,
     error,
-    startListening,
-    stopListening,
-    toggleListening,
+    toggleRecording,
+    cancelRecording,
+    transcribedText,
   };
 };

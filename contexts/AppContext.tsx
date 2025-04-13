@@ -115,11 +115,13 @@ export function AppProvider({ children }: AppProviderProps) {
   const [themePreference, setThemePreferenceState] =
     useState<ThemePreference>("auto");
   const [currentDirectory, setCurrentDirectoryState] = useState("");
-  
+
   // Determine if error monitoring should be enabled
   const isUsingDefaultCommand = webCommand.trim() === "npm run dev";
-  const isInDefaultDirectory = currentDirectory.endsWith("claude-next-app") || currentDirectory === "";
-  const isErrorMonitoringEnabled = isUsingDefaultCommand && isInDefaultDirectory;
+  const isInDefaultDirectory =
+    currentDirectory.endsWith("claude-next-app") || currentDirectory === "";
+  const isErrorMonitoringEnabled =
+    isUsingDefaultCommand && isInDefaultDirectory;
 
   // Load saved settings when app starts
   useEffect(() => {
@@ -135,7 +137,9 @@ export function AppProvider({ children }: AppProviderProps) {
           setPort(parseInt(savedPort, 10));
         }
 
-        const savedWebCommand = await AsyncStorage.getItem(WEB_COMMAND_STORAGE_KEY);
+        const savedWebCommand = await AsyncStorage.getItem(
+          WEB_COMMAND_STORAGE_KEY
+        );
         if (savedWebCommand) {
           setWebCommandState(savedWebCommand);
         }
@@ -371,12 +375,13 @@ export function AppProvider({ children }: AppProviderProps) {
       clearPendingErrors().catch(console.error);
       return;
     }
-    
+
     // Initial check on load
     updatePendingErrorCount();
 
     // Use a less frequent interval to reduce server load and network traffic
-    const intervalId = setInterval(updatePendingErrorCount, 30000); // 30 seconds
+    const INTERVAL_MS = 300000; // 5 min == 300 seconds
+    const intervalId = setInterval(updatePendingErrorCount, INTERVAL_MS);
     return () => clearInterval(intervalId);
   }, [hostname, isErrorMonitoringEnabled]);
 

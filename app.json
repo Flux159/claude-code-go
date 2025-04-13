@@ -9,7 +9,11 @@
     "userInterfaceStyle": "automatic",
     "newArchEnabled": true,
     "ios": {
-      "supportsTablet": true
+      "supportsTablet": true,
+      "bundleIdentifier": "com.claude.codego",
+      "infoPlist": {
+        "NSMicrophoneUsageDescription": "Allow $(PRODUCT_NAME) to access your microphone for voice input recording."
+      }
     },
     "android": {
       "adaptiveIcon": {
@@ -34,14 +38,7 @@
           "resizeMode": "contain",
           "backgroundColor": "#ffffff"
         }
-      ],
-      [
-        "expo-speech-recognition",
-        {
-          "microphonePermission": "Allow Claude Code Go to access your microphone"
-        }
-      ],
-      "@react-native-voice/voice"
+      ]
     ],
     "experiments": {
       "typedRoutes": true
