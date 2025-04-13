@@ -1,6 +1,6 @@
 # Claude Code Go
 
-Mobile app for claude code.
+Mobile app for [claude code](https://github.com/anthropics/claude-code/).
 
 https://github.com/user-attachments/assets/26123e2d-cca4-4d95-8429-2ef3cc8a278d
 
