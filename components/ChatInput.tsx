@@ -13,6 +13,7 @@ import {
 
 import { Constants } from "@/constants/Constants";
 import { useAppContext } from "@/contexts/AppContext";
+import { useAuth } from "@/contexts/AuthContext";
 import { useThemeColor } from "@/hooks/useThemeColor";
 import { IconSymbol } from "./ui/IconSymbol";
 import { useSpeechRecognition } from "@/hooks/useSpeechRecognition";
@@ -29,6 +30,7 @@ export function ChatInput() {
     clearPendingErrors,
     currentDirectory,
   } = useAppContext();
+  const { token } = useAuth();
   const backgroundColor = useThemeColor({}, "background");
   const textColor = useThemeColor({}, "text");
   const tintColor = useThemeColor({}, "tint");
@@ -190,7 +192,10 @@ export function ChatInput() {
         `http://${hostname}:${Constants.serverPort}/prompt`,
         {
           method: "POST",
-          headers: { "Content-Type": "application/json" },
+          headers: {
+            "Content-Type": "application/json",
+            ...(token ? { Authorization: `Bearer: ${token}` } : {}),
+          },
           body: JSON.stringify(requestBody),
         }
       );

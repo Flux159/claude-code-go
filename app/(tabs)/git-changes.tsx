@@ -8,7 +8,11 @@ import {
   TextInput,
   ActivityIndicator,
   FlatList,
+  KeyboardAvoidingView,
+  Platform,
+  Keyboard,
 } from "react-native";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useAppContext } from "@/contexts/AppContext";
 import { ThemedView } from "@/components/ThemedView";
 import { ThemedText } from "@/components/ThemedText";
@@ -16,6 +20,7 @@ import { IconSymbol } from "@/components/ui/IconSymbol";
 import { useThemeColor } from "@/hooks/useThemeColor";
 import { Constants } from "@/constants/Constants";
 import { useFocusEffect } from "expo-router";
+import { TOKEN_STORAGE_KEY } from "@/utils/api";
 
 // Types for Git status and diff
 interface GitFile {
@@ -57,12 +62,16 @@ export default function GitChangesScreen() {
       if (!currentDirectory) return;
 
       try {
+        // Get auth token
+        const token = await AsyncStorage.getItem(TOKEN_STORAGE_KEY);
+        
         const response = await fetch(
           `http://${hostname}:${Constants.serverPort}/git/diff`,
           {
             method: "POST",
             headers: {
               "Content-Type": "application/json",
+              "Authorization": token ? `Bearer: ${token}` : "",
             },
             body: JSON.stringify({
               directory: currentDirectory,
@@ -96,12 +105,16 @@ export default function GitChangesScreen() {
     setErrorMessage(null);
 
     try {
+      // Get auth token
+      const token = await AsyncStorage.getItem(TOKEN_STORAGE_KEY);
+      
       const response = await fetch(
         `http://${hostname}:${Constants.serverPort}/git/status`,
         {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
+            "Authorization": token ? `Bearer: ${token}` : "",
           },
           body: JSON.stringify({
             directory: currentDirectory,
@@ -148,12 +161,16 @@ export default function GitChangesScreen() {
     setErrorMessage(null);
 
     try {
+      // Get auth token
+      const token = await AsyncStorage.getItem(TOKEN_STORAGE_KEY);
+      
       const response = await fetch(
         `http://${hostname}:${Constants.serverPort}/git/reset-file`,
         {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
+            "Authorization": token ? `Bearer: ${token}` : "",
           },
           body: JSON.stringify({
             directory: currentDirectory,
@@ -208,12 +225,16 @@ export default function GitChangesScreen() {
     setErrorMessage(null);
 
     try {
+      // Get auth token
+      const token = await AsyncStorage.getItem(TOKEN_STORAGE_KEY);
+      
       const response = await fetch(
         `http://${hostname}:${Constants.serverPort}/reset`,
         {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
+            "Authorization": token ? `Bearer: ${token}` : "",
           },
           body: JSON.stringify({
             directory: currentDirectory,
@@ -248,12 +269,16 @@ export default function GitChangesScreen() {
     setErrorMessage(null);
 
     try {
+      // Get auth token
+      const token = await AsyncStorage.getItem(TOKEN_STORAGE_KEY);
+      
       const response = await fetch(
         `http://${hostname}:${Constants.serverPort}/git/commit`,
         {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
+            "Authorization": token ? `Bearer: ${token}` : "",
           },
           body: JSON.stringify({
             directory: currentDirectory,
@@ -267,7 +292,12 @@ export default function GitChangesScreen() {
       if (data.success) {
         setActionResult("Changes committed successfully");
         setCommitMessage("");
-        // Refresh the Git status
+        
+        // Clear the diffs section
+        setSelectedFile(null);
+        setFileDiffs({});
+        
+        // Refresh the Git status to update the file list
         fetchGitStatus();
       } else {
         setErrorMessage(data.error || "Failed to commit changes");
@@ -289,12 +319,16 @@ export default function GitChangesScreen() {
     setErrorMessage(null);
 
     try {
+      // Get auth token
+      const token = await AsyncStorage.getItem(TOKEN_STORAGE_KEY);
+      
       const response = await fetch(
         `http://${hostname}:${Constants.serverPort}/git/push`,
         {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
+            "Authorization": token ? `Bearer: ${token}` : "",
           },
           body: JSON.stringify({
             directory: currentDirectory,
@@ -319,35 +353,46 @@ export default function GitChangesScreen() {
 
   // Create Pull Request
   const handleCreatePR = async () => {
-    if (!currentDirectory || !commitMessage.trim()) return;
+    if (!currentDirectory) return;
 
     setActionLoading(true);
     setActionResult(null);
     setErrorMessage(null);
 
     try {
+      // Get auth token
+      const token = await AsyncStorage.getItem(TOKEN_STORAGE_KEY);
+      
+      // Use the commit message if provided, otherwise use a default title
+      const prTitle = commitMessage.trim() 
+        ? commitMessage 
+        : "Create PR from current changes";
+      
       const response = await fetch(
         `http://${hostname}:${Constants.serverPort}/git/create-pr`,
         {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
+            "Authorization": token ? `Bearer: ${token}` : "",
           },
           body: JSON.stringify({
             directory: currentDirectory,
-            title: commitMessage,
+            title: prTitle,
             body: "Created via Claude Go app",
           }),
         }
       );
 
       const data = await response.json();
+      console.log("PR creation response:", data);
 
       if (data.success) {
         setActionResult("Pull request created successfully");
         setCommitMessage("");
       } else {
         setErrorMessage(data.error || "Failed to create PR");
+        console.error("PR creation failed:", data.stderr || data.error || "Unknown error");
       }
     } catch (error) {
       console.error("Error creating PR:", error);
@@ -540,78 +585,94 @@ export default function GitChangesScreen() {
     );
   };
 
+  // Add keyboard dismiss functionality when tapping outside text input
+  const dismissKeyboard = () => {
+    Keyboard.dismiss();
+  };
+
   return (
-    <ThemedView style={styles.container}>
-      {/* Error message */}
-      {errorMessage && (
-        <View style={styles.errorContainer}>
-          <ThemedText style={styles.errorText}>{errorMessage}</ThemedText>
-        </View>
-      )}
+    <KeyboardAvoidingView
+      behavior={Platform.OS === "ios" ? "padding" : "height"}
+      style={{ flex: 1 }}
+      keyboardVerticalOffset={100} // Adjust this value based on your UI
+    >
+      <ThemedView style={styles.container}>
+        {/* Error message */}
+        {errorMessage && (
+          <View style={styles.errorContainer}>
+            <ThemedText style={styles.errorText}>{errorMessage}</ThemedText>
+          </View>
+        )}
 
-      {/* Action result message */}
-      {actionResult && (
-        <View style={styles.resultContainer}>
-          <ThemedText style={styles.resultText}>{actionResult}</ThemedText>
-        </View>
-      )}
+        {/* Action result message */}
+        {actionResult && (
+          <View style={styles.resultContainer}>
+            <ThemedText style={styles.resultText}>{actionResult}</ThemedText>
+          </View>
+        )}
 
-      {/* Loading state */}
-      {isLoading ? (
-        <View style={styles.loadingContainer}>
-          <ActivityIndicator size="large" color={tintColor} />
-          <ThemedText style={styles.loadingText}>
-            Loading Git status...
-          </ThemedText>
-        </View>
-      ) : (
-        <>
-          {/* Split view: Files list on top, diff view below */}
-          <View style={styles.splitContainer}>
-            {/* Files list */}
-            <View style={styles.filesContainer}>
-              {renderHeader()}
-              {changedFiles.length > 0 ? (
-                <FlatList
-                  data={changedFiles}
-                  renderItem={renderFileItem}
-                  keyExtractor={(item) => item.path}
-                  style={styles.filesList}
-                />
-              ) : (
-                <View style={styles.emptyContainer}>
-                  <ThemedText style={styles.emptyText}>
-                    No changes detected
+        {/* Loading state */}
+        {isLoading ? (
+          <View style={styles.loadingContainer}>
+            <ActivityIndicator size="large" color={tintColor} />
+            <ThemedText style={styles.loadingText}>
+              Loading Git status...
+            </ThemedText>
+          </View>
+        ) : (
+          <TouchableOpacity 
+            activeOpacity={1} 
+            style={{ flex: 1 }} 
+            onPress={dismissKeyboard}
+          >
+            {/* Split view: Files list on top, diff view below */}
+            <View style={styles.splitContainer}>
+              {/* Files list */}
+              <View style={styles.filesContainer}>
+                {renderHeader()}
+                {changedFiles.length > 0 ? (
+                  <FlatList
+                    data={changedFiles}
+                    renderItem={renderFileItem}
+                    keyExtractor={(item) => item.path}
+                    style={styles.filesList}
+                    keyboardShouldPersistTaps="handled"
+                  />
+                ) : (
+                  <View style={styles.emptyContainer}>
+                    <ThemedText style={styles.emptyText}>
+                      No changes detected
+                    </ThemedText>
+                  </View>
+                )}
+              </View>
+
+              {/* Diff view */}
+              <View style={styles.diffWrapper}>
+                <View style={styles.diffHeader}>
+                  <ThemedText style={styles.diffTitle}>
+                    {selectedFile ? `Diff: ${selectedFile}` : "Diff"}
                   </ThemedText>
                 </View>
-              )}
-            </View>
-
-            {/* Diff view */}
-            <View style={styles.diffWrapper}>
-              <View style={styles.diffHeader}>
-                <ThemedText style={styles.diffTitle}>
-                  {selectedFile ? `Diff: ${selectedFile}` : "Diff"}
-                </ThemedText>
+                {renderDiffContent()}
               </View>
-              {renderDiffContent()}
             </View>
-          </View>
 
-          {/* Commit actions at bottom */}
-          <View style={styles.commitContainer}>
-            <TextInput
-              style={[
-                styles.commitInput,
-                { borderColor, color: textColor, backgroundColor },
-              ]}
-              placeholder="Write commit message..."
-              placeholderTextColor={placeholderTextColor}
-              value={commitMessage}
-              onChangeText={setCommitMessage}
-              multiline
-            />
-            <View style={styles.actionButtons}>
+            {/* Commit actions at bottom */}
+            <View style={styles.commitContainer}>
+              <TextInput
+                style={[
+                  styles.commitInput,
+                  { borderColor, color: textColor, backgroundColor },
+                ]}
+                placeholder="Write commit message..."
+                placeholderTextColor={placeholderTextColor}
+                value={commitMessage}
+                onChangeText={setCommitMessage}
+                multiline
+                blurOnSubmit={false}
+              />
+              <View style={styles.actionButtons}>
               <TouchableOpacity
                 style={[styles.actionButton, styles.commitButton]}
                 onPress={handleCommit}
@@ -637,15 +698,16 @@ export default function GitChangesScreen() {
               <TouchableOpacity
                 style={[styles.actionButton, styles.prButton]}
                 onPress={handleCreatePR}
-                disabled={!commitMessage.trim() || actionLoading}
+                disabled={actionLoading} // Removed message requirement to create PR from current commits
               >
                 <Text style={styles.actionButtonText}>Create PR</Text>
               </TouchableOpacity>
             </View>
           </View>
-        </>
-      )}
-    </ThemedView>
+          </TouchableOpacity>
+        )}
+      </ThemedView>
+    </KeyboardAvoidingView>
   );
 }
 
