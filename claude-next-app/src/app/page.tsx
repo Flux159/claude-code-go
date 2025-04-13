@@ -20,50 +20,12 @@ export default function Home() {
         entirely new components!
       </p>
 
-      <div className="flex flex-col sm:flex-row gap-4">
-        <a
-          href="/dodecahedron"
-          className="inline-block rounded-lg bg-gradient-to-r from-purple-600 to-indigo-600 px-6 py-3 text-white shadow-lg transition hover:scale-105 hover:shadow-xl"
-        >
-          View 3D Dodecahedron
-        </a>
-        
-        <a
-          href="/emoji-to-ascii"
-          className="inline-block rounded-lg bg-gradient-to-r from-green-600 to-teal-600 px-6 py-3 text-white shadow-lg transition hover:scale-105 hover:shadow-xl"
-        >
-          Emoji to ASCII
-        </a>
-        
-        <a
-          href="/test-error"
-          className="inline-block rounded-lg bg-gradient-to-r from-red-600 to-orange-600 px-6 py-3 text-white shadow-lg transition hover:scale-105 hover:shadow-xl"
-        >
-          Test Error Handling
-        </a>
-        
-        <a
-          href="/debug-page"
-          className="inline-block rounded-lg bg-gradient-to-r from-blue-600 to-cyan-600 px-6 py-3 text-white shadow-lg transition hover:scale-105 hover:shadow-xl"
-        >
-          Debug Connection
-        </a>
-      </div>
-      
-      <div className="mt-12 max-w-lg">
-        <h2 className="mb-2 text-xl font-semibold">Testing Error Handling</h2>
-        <p className="text-gray-600 dark:text-gray-400">
-          The Test Error Handling page lets you trigger different types of errors to test 
-          the automatic error reporting system between Next.js and Claude.
-        </p>
-      </div>
-      
-      <div className="mt-6">
+      <div className="mt-8">
         <button 
           onClick={() => alert('Hello World')}
-          className="rounded-lg bg-gradient-to-r from-yellow-500 to-amber-500 px-6 py-3 text-white shadow-lg transition hover:scale-105 hover:shadow-xl"
+          className="rounded-lg bg-yellow-500 px-6 py-3 text-white shadow-lg transition hover:scale-105 hover:shadow-xl"
         >
-          Click Me!
+          Hello World Button
         </button>
       </div>
     </main>
