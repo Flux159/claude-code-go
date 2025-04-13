@@ -31,7 +31,7 @@ web_command_status = {
     "error": None,
     "last_error_line": None,
     "logs": [],
-    "max_logs": 1000  # Maximum number of log lines to keep
+    "max_logs": 1000,  # Maximum number of log lines to keep
 }
 
 
@@ -46,23 +46,25 @@ def output_reader(process, output_list, is_stderr=False):
     global web_command_status
     stream = process.stderr if is_stderr else process.stdout
     prefix = "ERROR: " if is_stderr else ""
-    
+
     for line in iter(stream.readline, ""):
         if line:
             timestamp = time.strftime("%Y-%m-%d %H:%M:%S")
             line_text = f"{prefix}{line.rstrip()}"
             log_entry = f"[{timestamp}] {line_text}"
-            
+
             print(log_entry)
             output_list.append(line_text)
-            
+
             # Add to logs with timestamp for display in UI
             with web_command_lock:
                 web_command_status["logs"].append(log_entry)
                 # Keep logs within the maximum size
                 if len(web_command_status["logs"]) > web_command_status["max_logs"]:
-                    web_command_status["logs"] = web_command_status["logs"][-web_command_status["max_logs"]:]
-                
+                    web_command_status["logs"] = web_command_status["logs"][
+                        -web_command_status["max_logs"] :
+                    ]
+
                 # If this is an error, update the last error line
                 if is_stderr:
                     web_command_status["last_error_line"] = log_entry
@@ -82,10 +84,10 @@ def is_process_running(pid):
 def start_web_command(command, directory=None):
     """Start the web command process."""
     global web_process, web_command_status
-    
+
     if directory is None:
         directory = str(Path(os.getcwd())) + "/claude-next-app"
-    
+
     with web_command_lock:
         # Kill any existing process
         if web_process is not None and is_process_running(web_command_status["pid"]):
@@ -98,11 +100,11 @@ def start_web_command(command, directory=None):
                 web_process.kill()
             except Exception as e:
                 print(f"Error terminating process: {e}")
-        
+
         # Reset the status
         timestamp = time.strftime("%Y-%m-%d %H:%M:%S")
         start_time = time.time()
-        
+
         web_command_status["running"] = False
         web_command_status["command"] = command
         web_command_status["pid"] = None
@@ -111,20 +113,22 @@ def start_web_command(command, directory=None):
         web_command_status["output"] = []
         web_command_status["error"] = None
         web_command_status["last_error_line"] = None
-        
+
         # Clear previous logs
         web_command_status["logs"] = []
-        
+
         # Add startup log
-        log_entry = f"[{timestamp}] Starting command: {command} in directory: {directory}"
+        log_entry = (
+            f"[{timestamp}] Starting command: {command} in directory: {directory}"
+        )
         web_command_status["logs"].append(log_entry)
         print(log_entry)
-        
+
         try:
             # Start new process
             shell_env = get_shell_env()
             env = {**os.environ, **shell_env}
-            
+
             web_process = subprocess.Popen(
                 command,
                 cwd=directory,
@@ -136,57 +140,59 @@ def start_web_command(command, directory=None):
                 bufsize=1,
                 universal_newlines=True,
             )
-            
+
             # Save process details
             web_command_status["pid"] = web_process.pid
             web_command_status["running"] = True
-            
+
             # Start output reader threads
             stdout_thread = threading.Thread(
                 target=output_reader,
                 args=(web_process, web_command_status["output"], False),
-                daemon=True
+                daemon=True,
             )
             stderr_thread = threading.Thread(
                 target=output_reader,
                 args=(web_process, web_command_status["output"], True),
-                daemon=True
+                daemon=True,
             )
-            
+
             stdout_thread.start()
             stderr_thread.start()
-            
+
             # Monitor process status
             def monitor_process():
                 web_process.wait()
-                
+
                 timestamp = time.strftime("%Y-%m-%d %H:%M:%S")
                 exit_code = web_process.returncode
-                
+
                 with web_command_lock:
                     web_command_status["running"] = False
                     web_command_status["exit_code"] = exit_code
-                    
+
                     # If the process failed, capture the error
                     if exit_code != 0:
                         error_msg = f"Process exited with code {exit_code}"
                         web_command_status["error"] = error_msg
-                        
+
                         # Add to logs
                         log_entry = f"[{timestamp}] ERROR: {error_msg}"
                         web_command_status["logs"].append(log_entry)
                         web_command_status["last_error_line"] = log_entry
-                        
+
                         print(f"Web command failed: {error_msg}")
                     else:
                         # Normal exit
-                        log_entry = f"[{timestamp}] Process completed normally with exit code 0"
+                        log_entry = (
+                            f"[{timestamp}] Process completed normally with exit code 0"
+                        )
                         web_command_status["logs"].append(log_entry)
                         print(log_entry)
-            
+
             monitor_thread = threading.Thread(target=monitor_process, daemon=True)
             monitor_thread.start()
-            
+
             return True
         except Exception as e:
             web_command_status["error"] = str(e)
@@ -198,17 +204,17 @@ def start_web_command(command, directory=None):
 def stop_web_command():
     """Stop the web command process."""
     global web_process, web_command_status
-    
+
     with web_command_lock:
         if web_process is None or not is_process_running(web_command_status["pid"]):
             web_command_status["running"] = False
             return True
-        
+
         timestamp = time.strftime("%Y-%m-%d %H:%M:%S")
         log_entry = f"[{timestamp}] Stopping command: {web_command_status['command']}"
         web_command_status["logs"].append(log_entry)
         print(log_entry)
-        
+
         try:
             # Try to terminate gracefully first
             web_process.terminate()
@@ -217,31 +223,33 @@ def stop_web_command():
             except subprocess.TimeoutExpired:
                 # Force kill if it doesn't terminate
                 timestamp = time.strftime("%Y-%m-%d %H:%M:%S")
-                log_entry = f"[{timestamp}] Process did not terminate gracefully, forcing kill"
+                log_entry = (
+                    f"[{timestamp}] Process did not terminate gracefully, forcing kill"
+                )
                 web_command_status["logs"].append(log_entry)
                 print(log_entry)
-                
+
                 web_process.kill()
                 web_process.wait()
-            
+
             web_command_status["running"] = False
             web_command_status["exit_code"] = web_process.returncode
-            
+
             timestamp = time.strftime("%Y-%m-%d %H:%M:%S")
             log_entry = f"[{timestamp}] Command stopped with exit code: {web_command_status['exit_code']}"
             web_command_status["logs"].append(log_entry)
             print(log_entry)
-            
+
             return True
         except Exception as e:
             error_msg = str(e)
             web_command_status["error"] = error_msg
-            
+
             timestamp = time.strftime("%Y-%m-%d %H:%M:%S")
             log_entry = f"[{timestamp}] ERROR: Failed to stop command: {error_msg}"
             web_command_status["logs"].append(log_entry)
             web_command_status["last_error_line"] = log_entry
-            
+
             print(f"Error stopping web command: {e}")
             return False
 
@@ -659,6 +667,550 @@ def clear_errors():
         return jsonify({"error": "Failed to clear errors", "details": str(e)}), 500
 
 
+def get_git_command():
+    """Determine the git command to use (sl or git)."""
+    try:
+        subprocess.run(["sl", "--version"], capture_output=True, check=True)
+        return "sl"
+    except (subprocess.CalledProcessError, FileNotFoundError):
+        return "git"
+
+
+@app.route("/git/status", methods=["POST"])
+def git_status():
+    """Get the status of the git repository."""
+    try:
+        data = request.get_json()
+        directory = data.get("directory")
+
+        if not directory:
+            return jsonify({"error": "Directory path is required"}), 400
+
+        git_cmd = get_git_command()
+
+        # Check if directory is a git or sl repository
+        is_git_repo = os.path.exists(os.path.join(directory, ".git"))
+
+        # For sl, check for existence of .sl directory
+        is_sl_repo = os.path.exists(os.path.join(directory, ".sl"))
+
+        if not is_git_repo and not is_sl_repo:
+            return jsonify({"error": "Not a git or sl repository"}), 400
+
+        # Use different status command based on git or sl
+        if git_cmd == "git":
+            # Git uses --porcelain format
+            status_cmd = f"{git_cmd} status --porcelain"
+        else:
+            # SL doesn't support --porcelain, use regular status
+            status_cmd = f"{git_cmd} status"
+
+        result = subprocess.run(
+            status_cmd,
+            cwd=directory,
+            shell=True,
+            capture_output=True,
+            text=True,
+        )
+
+        if result.returncode != 0:
+            return jsonify({"success": False, "error": result.stderr}), 400
+
+        changes = []
+
+        # Parse differently based on git or sl
+        if git_cmd == "git":
+            # Parse the porcelain output (git)
+            for line in result.stdout.splitlines():
+                if not line.strip():
+                    continue
+
+                status = line[:2]
+                file_path = line[3:].strip()
+
+                # Determine the status type
+                status_type = ""
+                if status == "??":
+                    status_type = "untracked"
+                elif status == "MM":
+                    status_type = "modified_staged_and_unstaged"
+                elif status[0] == "M":
+                    status_type = "modified_staged"
+                elif status[1] == "M":
+                    status_type = "modified_unstaged"
+                elif status[0] == "A":
+                    status_type = "added"
+                elif status[0] == "D":
+                    status_type = "deleted"
+                elif status[1] == "D":
+                    status_type = "deleted_unstaged"
+                elif status == "R":
+                    status_type = "renamed"
+                else:
+                    status_type = "other"
+
+                changes.append(
+                    {"status": status, "status_type": status_type, "path": file_path}
+                )
+        else:
+            # Parse the SL status output
+            current_section = None
+            for line in result.stdout.splitlines():
+                line = line.strip()
+                if not line:
+                    continue
+
+                # SL status usually has sections like "Changed:", "Added:", etc.
+                if line.endswith(":"):
+                    current_section = line.lower().replace(":", "")
+                    continue
+
+                if current_section:
+                    file_path = line
+
+                    # Map SL sections to our status types
+                    status_type = "other"
+                    status = "??"
+
+                    if "changed" in current_section:
+                        status_type = "modified_unstaged"
+                        status = " M"
+                    elif "added" in current_section:
+                        status_type = "added"
+                        status = "A "
+                    elif "removed" in current_section or "deleted" in current_section:
+                        status_type = "deleted"
+                        status = "D "
+                    elif "untracked" in current_section:
+                        status_type = "untracked"
+                        status = "??"
+
+                    changes.append(
+                        {
+                            "status": status,
+                            "status_type": status_type,
+                            "path": file_path,
+                        }
+                    )
+
+            # If we didn't parse any changes but have output, try a simpler approach
+            if not changes and result.stdout:
+                # Try to find file mentions in the output
+                for line in result.stdout.splitlines():
+                    line = line.strip()
+                    if not line or line.endswith(":"):
+                        continue
+
+                    # Try to extract filenames
+                    parts = line.split()
+                    if len(parts) > 0:
+                        file_path = parts[-1]  # Assume last part is the file
+                        status_type = "modified_unstaged"  # Default to modified
+                        status = " M"
+
+                        if "new file" in line.lower() or "add" in line.lower():
+                            status_type = "added"
+                            status = "A "
+                        elif "delete" in line.lower():
+                            status_type = "deleted"
+                            status = "D "
+
+                        changes.append(
+                            {
+                                "status": status,
+                                "status_type": status_type,
+                                "path": file_path,
+                            }
+                        )
+
+        return jsonify(
+            {"success": True, "changes": changes, "raw_output": result.stdout}
+        )
+    except Exception as e:
+        return (
+            jsonify(
+                {
+                    "success": False,
+                    "error": "Failed to get git status",
+                    "details": str(e),
+                }
+            ),
+            500,
+        )
+
+
+@app.route("/git/diff", methods=["POST"])
+def git_diff():
+    """Get the diff of a specific file or all files."""
+    try:
+        data = request.get_json()
+        directory = data.get("directory")
+        file_path = data.get("file_path")  # Optional, if None, get diff for all files
+
+        if not directory:
+            return jsonify({"error": "Directory path is required"}), 400
+
+        git_cmd = get_git_command()
+
+        # Check if directory is a git or sl repository
+        is_git_repo = os.path.exists(os.path.join(directory, ".git"))
+        is_sl_repo = os.path.exists(os.path.join(directory, ".sl"))
+
+        if not is_git_repo and not is_sl_repo:
+            return jsonify({"error": "Not a git or sl repository"}), 400
+
+        # Build the diff command, same for git and sl
+        diff_cmd = f"{git_cmd} diff"
+
+        # If file_path is provided, get diff for that specific file
+        if file_path:
+            if git_cmd == "git":
+                diff_cmd = f"{diff_cmd} -- {file_path}"
+            else:
+                # For sl, the file path comes after the diff command without --
+                diff_cmd = f"{diff_cmd} {file_path}"
+
+        # Run git diff
+        result = subprocess.run(
+            diff_cmd,
+            cwd=directory,
+            shell=True,
+            capture_output=True,
+            text=True,
+        )
+
+        if result.returncode != 0:
+            return jsonify({"success": False, "error": result.stderr}), 400
+
+        return jsonify({"success": True, "diff": result.stdout, "file_path": file_path})
+    except Exception as e:
+        return (
+            jsonify(
+                {"success": False, "error": "Failed to get git diff", "details": str(e)}
+            ),
+            500,
+        )
+
+
+@app.route("/git/reset-file", methods=["POST"])
+def git_reset_file():
+    """Reset changes to a specific file."""
+    try:
+        data = request.get_json()
+        directory = data.get("directory")
+        file_path = data.get("file_path")
+
+        if not directory:
+            return jsonify({"error": "Directory path is required"}), 400
+
+        if not file_path:
+            return jsonify({"error": "File path is required"}), 400
+
+        git_cmd = get_git_command()
+
+        # Check if directory is a git or sl repository
+        is_git_repo = os.path.exists(os.path.join(directory, ".git"))
+        is_sl_repo = os.path.exists(os.path.join(directory, ".sl"))
+
+        if not is_git_repo and not is_sl_repo:
+            return jsonify({"error": "Not a git or sl repository"}), 400
+
+        # Reset the file (unstaged changes)
+        if git_cmd == "git":
+            result = subprocess.run(
+                f"{git_cmd} checkout -- {file_path}",
+                cwd=directory,
+                shell=True,
+                capture_output=True,
+                text=True,
+            )
+
+            # If the file was staged, reset from staged too
+            staged_result = subprocess.run(
+                f"{git_cmd} reset HEAD {file_path}",
+                cwd=directory,
+                shell=True,
+                capture_output=True,
+                text=True,
+            )
+        else:
+            # For Sapling, use sl revert
+            result = subprocess.run(
+                f"{git_cmd} revert {file_path}",
+                cwd=directory,
+                shell=True,
+                capture_output=True,
+                text=True,
+            )
+
+            # SL doesn't have a separate unstaging command like Git
+            # For SL, the equivalent would be to use sl add to re-add a file
+            # But this is not needed in our reset case
+            staged_result = subprocess.CompletedProcess(
+                args="", returncode=0, stdout="", stderr=""
+            )
+
+        return jsonify(
+            {
+                "success": result.returncode == 0,
+                "stdout": result.stdout,
+                "stderr": result.stderr,
+            }
+        )
+    except Exception as e:
+        return (
+            jsonify(
+                {
+                    "success": False,
+                    "error": f"Failed to reset file {file_path}",
+                    "details": str(e),
+                }
+            ),
+            500,
+        )
+
+
+@app.route("/git/commit", methods=["POST"])
+def git_commit():
+    """Create a new commit with the provided message."""
+    try:
+        data = request.get_json()
+        directory = data.get("directory")
+        message = data.get("message")
+        files = data.get(
+            "files", []
+        )  # Optional list of files to commit, empty means all changed files
+
+        if not directory:
+            return jsonify({"error": "Directory path is required"}), 400
+
+        if not message:
+            return jsonify({"error": "Commit message is required"}), 400
+
+        git_cmd = get_git_command()
+
+        # Check if directory is a git or sl repository
+        is_git_repo = os.path.exists(os.path.join(directory, ".git"))
+        is_sl_repo = os.path.exists(os.path.join(directory, ".sl"))
+
+        if not is_git_repo and not is_sl_repo:
+            return jsonify({"error": "Not a git or sl repository"}), 400
+
+        # Stage the files
+        if files:
+            # Stage specific files
+            for file in files:
+                stage_result = subprocess.run(
+                    f"{git_cmd} add {file}",
+                    cwd=directory,
+                    shell=True,
+                    capture_output=True,
+                    text=True,
+                )
+                if stage_result.returncode != 0:
+                    return (
+                        jsonify(
+                            {
+                                "success": False,
+                                "error": f"Failed to stage file {file}",
+                                "details": stage_result.stderr,
+                            }
+                        ),
+                        400,
+                    )
+        else:
+            # Stage all changes
+            stage_result = subprocess.run(
+                f"{git_cmd} add -A",
+                cwd=directory,
+                shell=True,
+                capture_output=True,
+                text=True,
+            )
+            if stage_result.returncode != 0:
+                return (
+                    jsonify(
+                        {
+                            "success": False,
+                            "error": "Failed to stage changes",
+                            "details": stage_result.stderr,
+                        }
+                    ),
+                    400,
+                )
+
+        # Create the commit
+        commit_result = subprocess.run(
+            f'{git_cmd} commit -m "{message}"',
+            cwd=directory,
+            shell=True,
+            capture_output=True,
+            text=True,
+        )
+
+        return jsonify(
+            {
+                "success": commit_result.returncode == 0,
+                "stdout": commit_result.stdout,
+                "stderr": commit_result.stderr,
+            }
+        )
+    except Exception as e:
+        return (
+            jsonify(
+                {
+                    "success": False,
+                    "error": "Failed to create commit",
+                    "details": str(e),
+                }
+            ),
+            500,
+        )
+
+
+@app.route("/git/push", methods=["POST"])
+def git_push():
+    """Push changes to the remote repository."""
+    try:
+        data = request.get_json()
+        directory = data.get("directory")
+        branch = data.get("branch", "")  # Optional branch name
+        remote = data.get("remote", "origin")  # Default to origin
+
+        if not directory:
+            return jsonify({"error": "Directory path is required"}), 400
+
+        git_cmd = get_git_command()
+
+        # Check if directory is a git or sl repository
+        is_git_repo = os.path.exists(os.path.join(directory, ".git"))
+        is_sl_repo = os.path.exists(os.path.join(directory, ".sl"))
+
+        if not is_git_repo and not is_sl_repo:
+            return jsonify({"error": "Not a git or sl repository"}), 400
+
+        # Build the push command
+        push_cmd = f"{git_cmd} push {remote}"
+        if branch:
+            push_cmd = f"{push_cmd} {branch}"
+
+        # Push changes
+        push_result = subprocess.run(
+            push_cmd,
+            cwd=directory,
+            shell=True,
+            capture_output=True,
+            text=True,
+        )
+
+        return jsonify(
+            {
+                "success": push_result.returncode == 0,
+                "stdout": push_result.stdout,
+                "stderr": push_result.stderr,
+            }
+        )
+    except Exception as e:
+        return (
+            jsonify(
+                {"success": False, "error": "Failed to push changes", "details": str(e)}
+            ),
+            500,
+        )
+
+
+@app.route("/git/create-pr", methods=["POST"])
+def git_create_pr():
+    """Create a pull request."""
+    try:
+        data = request.get_json()
+        directory = data.get("directory")
+        title = data.get("title")
+        body = data.get("body", "")
+        base = data.get("base", "main")  # Default to main branch
+        head = data.get("head", "")  # Source branch
+
+        if not directory:
+            return jsonify({"error": "Directory path is required"}), 400
+
+        if not title:
+            return jsonify({"error": "PR title is required"}), 400
+
+        # Check if directory is a git or sl repository
+        is_git_repo = os.path.exists(os.path.join(directory, ".git"))
+        is_sl_repo = os.path.exists(os.path.join(directory, ".sl"))
+
+        if not is_git_repo and not is_sl_repo:
+            return jsonify({"error": "Not a git or sl repository"}), 400
+
+        # Check if the gh CLI is installed
+        try:
+            gh_version = subprocess.run(
+                "gh --version",
+                cwd=directory,
+                shell=True,
+                capture_output=True,
+                text=True,
+            )
+            if gh_version.returncode != 0:
+                return (
+                    jsonify(
+                        {
+                            "success": False,
+                            "error": "GitHub CLI (gh) is not installed or not properly configured",
+                        }
+                    ),
+                    400,
+                )
+        except Exception:
+            return (
+                jsonify(
+                    {
+                        "success": False,
+                        "error": "GitHub CLI (gh) is not installed or not properly configured",
+                    }
+                ),
+                400,
+            )
+
+        # Create PR command
+        pr_cmd = f'gh pr create --title "{title}"'
+        if body:
+            pr_cmd = f'{pr_cmd} --body "{body}"'
+        if base:
+            pr_cmd = f"{pr_cmd} --base {base}"
+        if head:
+            pr_cmd = f"{pr_cmd} --head {head}"
+
+        # Create the PR
+        pr_result = subprocess.run(
+            pr_cmd,
+            cwd=directory,
+            shell=True,
+            capture_output=True,
+            text=True,
+        )
+
+        return jsonify(
+            {
+                "success": pr_result.returncode == 0,
+                "stdout": pr_result.stdout,
+                "stderr": pr_result.stderr,
+            }
+        )
+    except Exception as e:
+        return (
+            jsonify(
+                {
+                    "success": False,
+                    "error": "Failed to create pull request",
+                    "details": str(e),
+                }
+            ),
+            500,
+        )
+
+
 @app.route("/reset", methods=["POST"])
 def git_reset():
     try:
@@ -668,34 +1220,52 @@ def git_reset():
         if not directory:
             return jsonify({"error": "Directory path is required"}), 400
 
-        # Check which git command is available (oldgit or git)
-        try:
-            subprocess.run(["oldgit", "--version"], capture_output=True, check=True)
-            git_cmd = "oldgit"
-        except (subprocess.CalledProcessError, FileNotFoundError):
-            git_cmd = "git"
+        git_cmd = get_git_command()
 
-        # Check if directory is a git repository
-        if not os.path.exists(os.path.join(directory, ".git")):
-            return jsonify({"error": "Not a git repository"}), 400
+        # Check if directory is a git or sl repository
+        is_git_repo = os.path.exists(os.path.join(directory, ".git"))
+        is_sl_repo = os.path.exists(os.path.join(directory, ".sl"))
 
-        # Run git reset --hard
-        result = subprocess.run(
-            f"{git_cmd} reset --hard",
-            cwd=directory,
-            shell=True,
-            capture_output=True,
-            text=True,
-        )
+        if not is_git_repo and not is_sl_repo:
+            return jsonify({"error": "Not a git or sl repository"}), 400
 
-        # Also clean untracked files if desired
-        clean_result = subprocess.run(
-            f"{git_cmd} clean -fd",
-            cwd=directory,
-            shell=True,
-            capture_output=True,
-            text=True,
-        )
+        # Run reset
+        if git_cmd == "git":
+            # Git reset --hard
+            result = subprocess.run(
+                f"{git_cmd} reset --hard",
+                cwd=directory,
+                shell=True,
+                capture_output=True,
+                text=True,
+            )
+
+            # Also clean untracked files if desired
+            clean_result = subprocess.run(
+                f"{git_cmd} clean -fd",
+                cwd=directory,
+                shell=True,
+                capture_output=True,
+                text=True,
+            )
+        else:
+            # SL uses revert -a for equivalent of git reset --hard
+            result = subprocess.run(
+                f"{git_cmd} revert -a",
+                cwd=directory,
+                shell=True,
+                capture_output=True,
+                text=True,
+            )
+
+            # SL has clean command
+            clean_result = subprocess.run(
+                f"{git_cmd} clean --force",
+                cwd=directory,
+                shell=True,
+                capture_output=True,
+                text=True,
+            )
 
         return jsonify(
             {
@@ -723,11 +1293,13 @@ def get_web_command_status():
     with web_command_lock:
         # Check if the process is actually running, even if we think it is
         if web_command_status["running"] and web_command_status["pid"]:
-            web_command_status["running"] = is_process_running(web_command_status["pid"])
-        
+            web_command_status["running"] = is_process_running(
+                web_command_status["pid"]
+            )
+
         # Get log line limits from query params
         max_logs = request.args.get("max_logs", default=100, type=int)
-        
+
         # Return a status response (limit the output lines to avoid huge responses)
         response = {
             "running": web_command_status["running"],
@@ -739,10 +1311,12 @@ def get_web_command_status():
             "error": web_command_status["error"],
             "last_error_line": web_command_status["last_error_line"],
             "output_lines": len(web_command_status["output"]),
-            "logs": web_command_status["logs"][-max_logs:],  # Return the requested number of logs
-            "total_logs": len(web_command_status["logs"])
+            "logs": web_command_status["logs"][
+                -max_logs:
+            ],  # Return the requested number of logs
+            "total_logs": len(web_command_status["logs"]),
         }
-        
+
     return jsonify(response)
 
 
@@ -753,20 +1327,24 @@ def start_web_command_endpoint():
         data = request.get_json()
         command = data.get("command")
         directory = data.get("directory")
-        
+
         if not command:
             return jsonify({"error": "Command is required"}), 400
-        
+
         if not directory:
             directory = str(Path(os.getcwd())) + "/claude-next-app"
-        
+
         success = start_web_command(command, directory)
-        
-        return jsonify({
-            "success": success,
-            "message": "Web command started" if success else "Failed to start web command",
-            "error": web_command_status["error"]
-        })
+
+        return jsonify(
+            {
+                "success": success,
+                "message": (
+                    "Web command started" if success else "Failed to start web command"
+                ),
+                "error": web_command_status["error"],
+            }
+        )
     except Exception as e:
         return jsonify({"success": False, "error": str(e)}), 500
 
@@ -776,12 +1354,16 @@ def stop_web_command_endpoint():
     """Stop the web command process."""
     try:
         success = stop_web_command()
-        
-        return jsonify({
-            "success": success,
-            "message": "Web command stopped" if success else "Failed to stop web command",
-            "error": web_command_status["error"]
-        })
+
+        return jsonify(
+            {
+                "success": success,
+                "message": (
+                    "Web command stopped" if success else "Failed to stop web command"
+                ),
+                "error": web_command_status["error"],
+            }
+        )
     except Exception as e:
         return jsonify({"success": False, "error": str(e)}), 500
 
@@ -793,31 +1375,37 @@ def restart_web_command_endpoint():
         data = request.get_json()
         command = data.get("command") or web_command_status["command"]
         directory = data.get("directory")
-        
+
         if not command:
             return jsonify({"error": "No command found to restart"}), 400
-        
+
         # Add restart log entry
         timestamp = time.strftime("%Y-%m-%d %H:%M:%S")
         log_entry = f"[{timestamp}] Restarting command: {command}"
-        
+
         with web_command_lock:
             # Clear logs immediately for restart
             web_command_status["logs"] = []
             web_command_status["logs"].append(log_entry)
             print(log_entry)
-        
+
         # Stop the existing process
         stop_web_command()
-        
+
         # Start the new process
         success = start_web_command(command, directory)
-        
-        return jsonify({
-            "success": success,
-            "message": "Web command restarted" if success else "Failed to restart web command",
-            "error": web_command_status["error"]
-        })
+
+        return jsonify(
+            {
+                "success": success,
+                "message": (
+                    "Web command restarted"
+                    if success
+                    else "Failed to restart web command"
+                ),
+                "error": web_command_status["error"],
+            }
+        )
     except Exception as e:
         return jsonify({"success": False, "error": str(e)}), 500
 
@@ -829,22 +1417,22 @@ def get_web_command_output():
         # Get optional query parameters for pagination
         start_line = request.args.get("start", type=int, default=0)
         max_lines = request.args.get("max", type=int, default=100)
-        
+
         with web_command_lock:
             total_lines = len(web_command_status["output"])
             start_idx = max(0, min(start_line, total_lines))
             end_idx = min(start_idx + max_lines, total_lines)
-            
+
             output_slice = web_command_status["output"][start_idx:end_idx]
-            
+
             response = {
                 "total_lines": total_lines,
                 "start_line": start_idx,
                 "end_line": end_idx,
                 "lines": output_slice,
-                "running": web_command_status["running"]
+                "running": web_command_status["running"],
             }
-            
+
         return jsonify(response)
     except Exception as e:
         return jsonify({"error": str(e)}), 500
@@ -857,23 +1445,23 @@ def get_web_command_logs():
         # Get optional query parameters for pagination
         start_line = request.args.get("start", type=int, default=0)
         max_lines = request.args.get("max", type=int, default=100)
-        
+
         with web_command_lock:
             total_lines = len(web_command_status["logs"])
             start_idx = max(0, min(start_line, total_lines))
             end_idx = min(start_idx + max_lines, total_lines)
-            
+
             logs_slice = web_command_status["logs"][start_idx:end_idx]
-            
+
             response = {
                 "total_lines": total_lines,
                 "start_line": start_idx,
                 "end_line": end_idx,
                 "logs": logs_slice,
                 "running": web_command_status["running"],
-                "last_error_line": web_command_status["last_error_line"]
+                "last_error_line": web_command_status["last_error_line"],
             }
-            
+
         return jsonify(response)
     except Exception as e:
         return jsonify({"error": str(e)}), 500
