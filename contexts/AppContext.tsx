@@ -295,7 +295,7 @@ export function AppProvider({ children }: AppProviderProps) {
       const timestamp = new Date().getTime();
       const url = `http://${serverHost}:${serverPort}/errors?_t=${timestamp}`;
 
-      console.log(`Checking for errors at: ${url}`);
+      // console.log(`Checking for errors at: ${url}`);
 
       // Use our fetchWithRetry implementation
       const data = await fetchWithRetry(url, {
