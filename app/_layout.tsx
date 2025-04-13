@@ -18,6 +18,10 @@ import { useColorScheme } from "@/hooks/useColorScheme";
 import LoginScreen from "@/components/LoginScreen";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
 
+// Remove the box errors from expo
+import { LogBox } from "react-native";
+LogBox.ignoreAllLogs();
+
 // Prevent the splash screen from auto-hiding before asset loading is complete.
 SplashScreen.preventAutoHideAsync();
 

@@ -21,9 +21,15 @@ Make sure that you have installed & run [claude code](https://docs.anthropic.com
 claude --dangerously-skip-permissions
 ```
 
+Make a password for claude code go, change `yourpassword` in the command below to a secure password:
+```
+mkdir -p ~/.claudecodego/ && echo "yourpassword" > ~/.claudecodego/passwd 
+```
+
 Then, clone the repo & run the following command to install dependencies. Note that you need node, npm, and python in order to run the server & expo go server. See [this](https://github.com/anthropics/claude-code/issues/771) for why the server is in python:
 
 ```shell
+git clone https://github.com/Flux159/claude-code-go.git && cd claude-code-go
 npm install
 ```
 
