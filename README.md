@@ -21,7 +21,7 @@ Make sure that you have installed & run [claude code](https://docs.anthropic.com
 claude --dangerously-skip-permissions
 ```
 
-Make a password for claude code go, change "yourpassword" in the command below to a secure password:
+Make a password for claude code go, change `yourpassword` in the command below to a secure password:
 ```
 mkdir -p ~/.claudecodego/ && echo "yourpassword" > ~/.claudecodego/passwd 
 ```
