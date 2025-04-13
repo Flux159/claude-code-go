@@ -40,3 +40,6 @@ yarn-error.*
 
 
 app-example
+
+error_count.txt
+**/error_count.txt

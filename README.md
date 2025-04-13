@@ -1,29 +1,30 @@
-# Welcome to your Expo app 👋
+# Claude Code Go
 
-This is an [Expo](https://expo.dev) project created with [`create-expo-app`](https://www.npmjs.com/package/create-expo-app).
+Mobile app for claude code.
 
-## Get started
+https://github.com/user-attachments/assets/572cc927-2af6-4af9-88bc-2b16e07f3344
 
-1. Install dependencies
+## Getting started
 
-   ```bash
-   npm install
-   ```
+Make sure that you have installed & run [claude code](https://docs.anthropic.com/en/docs/agents-and-tools/claude-code/overview) once in your terminal first using the command and then accept it:
 
-2. Start the app
+```
+claude --dangerously-skip-permissions
+```
 
-   ```bash
-    npx expo start
-   ```
+Then, run the following command to install dependencies:
 
-In the output, you'll find options to open the app in a
+```shell
+npm install
+```
 
-- [development build](https://docs.expo.dev/develop/development-builds/introduction/)
-- [Android emulator](https://docs.expo.dev/workflow/android-studio-emulator/)
-- [iOS simulator](https://docs.expo.dev/workflow/ios-simulator/)
-- [Expo Go](https://expo.dev/go), a limited sandbox for trying out app development with Expo
+In 3 different terminal sessions, run the following commands:
 
-You can start developing by editing the files inside the **app** directory. This project uses [file-based routing](https://docs.expo.dev/router/introduction).
+```shell
+npm run start
+npm run server
+npm run dev
+```
 
 ## Troubleshooting
 
@@ -42,27 +43,3 @@ npx expo start --tunnel
 ```
 
 See more details here: https://stackoverflow.com/questions/79332816/uncaught-error-java-io-ioexception-failed-to-download-remote-update
-
-## Get a fresh project
-
-When you're ready, run:
-
-```bash
-npm run reset-project
-```
-
-This command will move the starter code to the **app-example** directory and create a blank **app** directory where you can start developing.
-
-## Learn more
-
-To learn more about developing your project with Expo, look at the following resources:
-
-- [Expo documentation](https://docs.expo.dev/): Learn fundamentals, or go into advanced topics with our [guides](https://docs.expo.dev/guides).
-- [Learn Expo tutorial](https://docs.expo.dev/tutorial/introduction/): Follow a step-by-step tutorial where you'll create a project that runs on Android, iOS, and the web.
-
-## Join the community
-
-Join our community of developers creating universal apps.
-
-- [Expo on GitHub](https://github.com/expo/expo): View our open source platform and contribute.
-- [Discord community](https://chat.expo.dev): Chat with Expo users and ask questions.
