@@ -21,7 +21,7 @@ Make sure that you have installed & run [claude code](https://docs.anthropic.com
 claude --dangerously-skip-permissions
 ```
 
-Then, clone the repo & run the following command to install dependencies:
+Then, clone the repo & run the following command to install dependencies. Note that you need node, npm, and python in order to run the server & expo go server. See [this](https://github.com/anthropics/claude-code/issues/771) for why the server is in python:
 
 ```shell
 npm install
