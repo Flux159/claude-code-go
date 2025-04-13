@@ -84,7 +84,11 @@ export default function ChatScreen() {
           keyExtractor={(item) => item.id}
           renderItem={({ item }) => (
             <View style={styles.messageItem}>
-              <ChatMessage message={item} toolResultsMap={toolResultsMap} />
+              <ChatMessage 
+                message={item} 
+                toolResultsMap={toolResultsMap} 
+                shouldFadeSystem={filteredMessages.some(msg => msg.role === 'user')}
+              />
             </View>
           )}
           ListFooterComponent={<LoadingIndicator />}

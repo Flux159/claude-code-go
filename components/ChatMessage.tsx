@@ -1,5 +1,5 @@
-import React, { useEffect, useMemo, useState } from 'react';
-import { Platform, StyleSheet, View } from 'react-native';
+import React, { useEffect, useMemo, useState, useRef } from 'react';
+import { Platform, StyleSheet, View, Animated } from 'react-native';
 
 import { Collapsible } from '@/components/Collapsible';
 import { Message } from '@/contexts/AppContext';
@@ -119,6 +119,7 @@ const isDiffOutput = (text: string): boolean => {
 interface ChatMessageProps {
   message: Message;
   toolResultsMap?: Record<string, any>;
+  shouldFadeSystem?: boolean;
 }
 
 export const LoadingDots = () => {
@@ -171,7 +172,19 @@ export const LoadingDots = () => {
     "Integrating",
     "Systemizing",
     "Unraveling",
-    "Assessing"
+    "Assessing",
+    "Harmonizing",
+    "Reconciling",
+    "Envisioning",
+    "Orchestrating",
+    "Reconciling",
+    "Perceiving",
+    "Amalgamating",
+    "Calculating",
+    "Configuring",
+    "Disentangling",
+    "Recalibrating",
+    "Synthesizing"
   ];
 
   const waitingEmojis = [
@@ -187,7 +200,10 @@ export const LoadingDots = () => {
     "🐳", "🦦", "🦥", "🦢", "🦗", "🦎", "🐝", "🦅",
     "🪶", "🪵", "🦂", "🕳️", "🎓", "🎡", "🧩", "🎠",
     "🧵", "🎁", "📚", "💡", "🥽", "⚗️", "🧿", "🧶",
-    "🔧", "⌛", "📝", "🏺", "🧨", "🌠", "💫", "🍀"
+    "🔧", "⌛", "📝", "🏺", "🧨", "🌠", "💫", "🍀",
+    "🔮", "🎡", "🪅", "🎪", "🎭", "🎯", "🎨", "🃏",
+    "🎐", "🌠", "✴️", "⚡", "🦚", "🦭", "🦮", "🦈",
+    "🦕", "🦧", "🐲", "🧚", "🧛", "🧜", "🧟", "🦹"
   ];
 
   const [currentWordIndex, setCurrentWordIndex] = useState(
@@ -234,13 +250,26 @@ export const LoadingDots = () => {
   );
 };
 
-export function ChatMessage({ message, toolResultsMap = {} }: ChatMessageProps) {
+export function ChatMessage({ message, toolResultsMap = {}, shouldFadeSystem = false }: ChatMessageProps) {
   const isUser = message.role === 'user';
   const isSystem = message.role === 'system';
   const userBubbleColor = useThemeColor({}, 'userBubble');
   const assistantBubbleColor = useThemeColor({}, 'assistantBubble');
   const systemBubbleColor = useThemeColor({}, 'background');
   const colorScheme = useColorScheme();
+  
+  // Animation for system message fade out
+  const fadeAnim = useRef(new Animated.Value(1)).current;
+  
+  useEffect(() => {
+    if (isSystem && shouldFadeSystem) {
+      Animated.timing(fadeAnim, {
+        toValue: 0,
+        duration: 500,
+        useNativeDriver: true,
+      }).start();
+    }
+  }, [isSystem, shouldFadeSystem, fadeAnim]);
 
   // Get theme colors for code blocks
   const codeBackgroundColor = useThemeColor({}, 'codeBackground');
@@ -449,16 +478,16 @@ export function ChatMessage({ message, toolResultsMap = {} }: ChatMessageProps) 
     });
   };
 
-  // For system messages, use a special centered layout
+  // For system messages, use a special centered layout with animation
   if (isSystem) {
     return (
-      <View style={styles.systemContainer}>
+      <Animated.View style={[styles.systemContainer, { opacity: fadeAnim }]}>
         <ThemedView
           style={[styles.systemBubble, { backgroundColor: systemBubbleColor }]}
         >
           {renderContent()}
         </ThemedView>
-      </View>
+      </Animated.View>
     );
   }
 
