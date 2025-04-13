@@ -2,7 +2,16 @@
 
 Mobile app for claude code.
 
-https://github.com/user-attachments/assets/44ea735b-bd89-46c8-9833-85fea59cee40
+https://github.com/user-attachments/assets/26123e2d-cca4-4d95-8429-2ef3cc8a278d
+
+## Features
+
+- [x] Authenticate to your claude code go server
+- [x] File tree browsing to choose a directory for your project
+- [x] Spin up a preview web server to be able to see changes on your phone
+- [x] Prompt claude code and view its tool calls and messages on your phone. Use dictation to speak your changes into existence!
+- [x] Chat history of your previous chats
+- [x] Git commit and create a PR directly from mobile
 
 ## Getting started
 
