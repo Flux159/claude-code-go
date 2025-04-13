@@ -9,6 +9,7 @@ import {
   TextInput,
   TouchableOpacity,
   View,
+  SafeAreaView,
 } from "react-native";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 
@@ -322,11 +323,12 @@ export function WebPreviewSettings({ visible, onClose }: WebPreviewSettingsProps
       visible={visible}
       onRequestClose={onClose}
     >
-      <KeyboardAvoidingView
-        behavior={Platform.OS === "ios" ? "padding" : "height"}
-        style={styles.modalContainer}
-      >
-        <ThemedView style={styles.modalContent}>
+      <SafeAreaView style={styles.modalContainer}>
+        <KeyboardAvoidingView
+          behavior={Platform.OS === "ios" ? "padding" : "height"}
+          style={styles.keyboardAvoidingView}
+        >
+          <ThemedView style={styles.modalContent}>
           <View style={styles.modalHeader}>
             <ThemedText style={styles.modalTitle}>Web Preview Settings</ThemedText>
             <TouchableOpacity style={styles.closeButton} onPress={onClose}>
@@ -536,7 +538,8 @@ export function WebPreviewSettings({ visible, onClose }: WebPreviewSettingsProps
             </TouchableOpacity>
           </View>
         </ThemedView>
-      </KeyboardAvoidingView>
+        </KeyboardAvoidingView>
+      </SafeAreaView>
     </Modal>
   );
 }
@@ -544,8 +547,11 @@ export function WebPreviewSettings({ visible, onClose }: WebPreviewSettingsProps
 const styles = StyleSheet.create({
   modalContainer: {
     flex: 1,
-    justifyContent: "center",
     backgroundColor: "rgba(0, 0, 0, 0.5)",
+  },
+  keyboardAvoidingView: {
+    flex: 1,
+    justifyContent: "center",
   },
   modalContent: {
     flex: 1,
@@ -560,6 +566,9 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.25,
     shadowRadius: 3.84,
     elevation: 5,
+    // Add max height to account for notches
+    maxHeight: '85%',
+    alignSelf: 'center',
   },
   modalHeader: {
     flexDirection: "row",

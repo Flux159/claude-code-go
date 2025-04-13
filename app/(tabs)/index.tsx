@@ -150,6 +150,13 @@ export default function ChatScreen() {
             
             // Consider user at bottom if within 20px of bottom
             const isClose = contentHeight - offsetY - scrollViewHeight < 20;
+            
+            // Only dismiss keyboard on intentional scrolling when not at bottom
+            // This prevents dismissal when keyboard appears or when chat is pinned to bottom
+            if (!isClose && isAtBottom) {
+              Keyboard.dismiss();
+            }
+            
             setIsAtBottom(isClose);
           }}
           scrollEventThrottle={200}
