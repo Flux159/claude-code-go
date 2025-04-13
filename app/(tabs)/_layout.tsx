@@ -11,6 +11,7 @@ import { useColorScheme } from "@/hooks/useColorScheme";
 import { useThemeColor } from "@/hooks/useThemeColor";
 import { FileTree } from "@/components/FileTree";
 import { ThemedText } from "@/components/ThemedText";
+import { ChatHistory } from "@/components/ChatHistory";
 
 declare global {
   var webViewRef: any;
@@ -25,6 +26,9 @@ export default function TabLayout() {
     clearMessages,
     pendingErrorCount,
     updatePendingErrorCount,
+    currentDirectory,
+    chatHistoryVisible,
+    setChatHistoryVisible
   } = useAppContext();
   const displayUrl = `${hostname}:${port}`;
   const [fileTreeVisible, setFileTreeVisible] = useState(false);
@@ -46,6 +50,10 @@ export default function TabLayout() {
       <FileTree
         isVisible={fileTreeVisible}
         onClose={() => setFileTreeVisible(false)}
+      />
+      <ChatHistory
+        isVisible={chatHistoryVisible}
+        onClose={() => setChatHistoryVisible(false)}
       />
       <Tabs
         screenOptions={{
@@ -118,6 +126,24 @@ export default function TabLayout() {
                 <TouchableOpacity
                   style={{
                     marginLeft: 16,
+                    padding: 12,
+                    minWidth: 44,
+                    minHeight: 44,
+                    alignItems: "center",
+                    justifyContent: "center",
+                  }}
+                  onPress={() => setChatHistoryVisible(true)}
+                  hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+                >
+                  <IconSymbol
+                    name="text.bubble"
+                    size={20}
+                    color={Colors[colorScheme ?? "light"].tint}
+                  />
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={{
+                    marginLeft: 8,
                     padding: 12,
                     minWidth: 44,
                     minHeight: 44,
@@ -200,6 +226,24 @@ export default function TabLayout() {
                     alignItems: "center",
                     justifyContent: "center",
                   }}
+                  onPress={() => setChatHistoryVisible(true)}
+                  hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+                >
+                  <IconSymbol
+                    name="text.bubble"
+                    size={20}
+                    color={Colors[colorScheme ?? "light"].tint}
+                  />
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={{
+                    marginLeft: 8,
+                    padding: 12,
+                    minWidth: 44,
+                    minHeight: 44,
+                    alignItems: "center",
+                    justifyContent: "center",
+                  }}
                   onPress={() => setFileTreeVisible(true)}
                   hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
                 >
@@ -261,6 +305,89 @@ export default function TabLayout() {
                     color={Colors[colorScheme ?? "light"].tint}
                   />
                 </TouchableOpacity>
+              </View>
+            ),
+          }}
+        />
+        <Tabs.Screen
+          name="git-changes"
+          options={{
+            headerTitle: () => (
+              <Text style={{ fontSize: 18, fontWeight: "bold", color: textColor }}>
+                Git Changes
+              </Text>
+            ),
+            tabBarLabel: "Git",
+            tabBarIcon: ({ color }) => (
+              <IconSymbol size={28} name="arrow.triangle.branch" color={color} />
+            ),
+            headerLeft: () => (
+              <View style={{ flexDirection: "row" }}>
+                <TouchableOpacity
+                  style={{
+                    marginLeft: 16,
+                    padding: 12,
+                    minWidth: 44,
+                    minHeight: 44,
+                    alignItems: "center",
+                    justifyContent: "center",
+                  }}
+                  onPress={() => setChatHistoryVisible(true)}
+                  hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+                >
+                  <IconSymbol
+                    name="text.bubble"
+                    size={20}
+                    color={Colors[colorScheme ?? "light"].tint}
+                  />
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={{
+                    marginLeft: 8,
+                    padding: 12,
+                    minWidth: 44,
+                    minHeight: 44,
+                    alignItems: "center",
+                    justifyContent: "center",
+                  }}
+                  onPress={() => setFileTreeVisible(true)}
+                  hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+                >
+                  <IconSymbol
+                    name="line.3.horizontal"
+                    size={20}
+                    color={Colors[colorScheme ?? "light"].tint}
+                  />
+                </TouchableOpacity>
+              </View>
+            ),
+            headerRight: () => (
+              <View style={{ flexDirection: "row", alignItems: "center", paddingRight: 16 }}>
+                <TouchableOpacity
+                  style={{
+                    marginRight: 12,
+                    padding: 8,
+                    minWidth: 36,
+                    minHeight: 36,
+                    alignItems: "center",
+                    justifyContent: "center",
+                  }}
+                  onPress={() => {
+                    // This will trigger a reload when the global GitRefreshTrigger is used in the GitChanges component
+                    // Just changing the screen to go there again will trigger the useFocusEffect
+                    // We're not exposing a direct method since that would be more involved architecture-wise
+                  }}
+                  hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+                >
+                  <IconSymbol
+                    name="arrow.clockwise"
+                    size={18}
+                    color={Colors[colorScheme ?? "light"].tint}
+                  />
+                </TouchableOpacity>
+                <ThemedText style={{ fontSize: 14 }}>
+                  {currentDirectory ? currentDirectory.split('/').pop() : ""}
+                </ThemedText>
               </View>
             ),
           }}
