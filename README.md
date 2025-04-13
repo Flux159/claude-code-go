@@ -46,11 +46,13 @@ To login via your local network on your phone, use the hostname or IP address of
 
 You should absolutely change the default password before starting the server.
 
-Inside of the app, you can go to Settings -> Web Preview and use a command to run your web app for previews built in from there. By default it's setup to run:
+Inside of the app, you can go to the Preview tab and tap the server icon in the header to access web preview settings. From there, you can start, stop, and configure the web server that powers the preview. By default it's setup to run:
 
 ```shell
 npm run dev
 ```
+
+If the web server isn't running, a dialog will appear in the Preview tab allowing you to start it directly without having to navigate to settings.
 
 ## Troubleshooting
 

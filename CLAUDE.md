@@ -59,8 +59,10 @@ Claude Code Go is a mobile application that provides a chat interface to Claude 
 ## Key Files
 
 - `/app/(tabs)/index.tsx` - Main chat UI
+- `/app/(tabs)/web-preview.tsx` - Web preview tab with server management
 - `/components/ChatInput.tsx` - Chat input and message handling
 - `/components/ChatMessage.tsx` - Message rendering and formatting
+- `/components/WebPreviewSettings.tsx` - Web server management dialog
 - `/contexts/AppContext.tsx` - State management and data model
 - `/server/main.py` - Python server implementation
 - `/claude-next-app/src/app/page.tsx` - Next.js web interface
@@ -138,3 +140,29 @@ The app communicates with Claude via the Claude CLI tool. When you're trying to 
 - SSE (Server-Sent Events) is used for streaming responses from Claude
 - Messages are stored in memory (no persistence between app restarts)
 - The Python server handles spawning Claude CLI processes and capturing outputs
+
+## Web Preview and Server Management
+
+The Web Preview tab allows you to view and interact with web applications you're developing:
+
+1. **Accessing Web Preview Settings**
+   - Tap the server icon in the Web Preview tab header
+   - This opens a dedicated settings panel for server management
+   - You can also access it by tapping "Start Server" when the server isn't running
+
+2. **Server Management Features**
+   - View real-time server status (running/stopped)
+   - Start, stop, and restart the web server
+   - Change the server command (default: `npm run dev`)
+   - View real-time server logs with error highlighting
+   - Automatically uses the correct Next.js app directory
+
+3. **Smart Directory Handling**
+   - Automatically detects and uses the `claude-next-app` directory
+   - Works correctly regardless of what directory you're browsing in the file tree
+   - Shows the exact directory being used in the UI
+
+4. **Error Handling**
+   - If the server fails to start, detailed error information is displayed
+   - Connection issues between the web view and server are clearly communicated
+   - Server logs show error messages in red for easy identification

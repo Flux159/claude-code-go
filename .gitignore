@@ -39,3 +39,6 @@ app-example
 
 error_count.txt
 **/error_count.txt
+__pycache__
+**/__pycache__/*
+*.pyc

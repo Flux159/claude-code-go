@@ -194,6 +194,28 @@ export default function TabLayout() {
               <View style={{ flexDirection: "row" }}>
                 <TouchableOpacity
                   style={{
+                    marginRight: 8,
+                    padding: 12,
+                    minWidth: 44,
+                    minHeight: 44,
+                    alignItems: "center",
+                    justifyContent: "center",
+                  }}
+                  onPress={() => {
+                    if (typeof global.openWebPreviewSettings === 'function') {
+                      global.openWebPreviewSettings();
+                    }
+                  }}
+                  hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+                >
+                  <IconSymbol
+                    name="server.rack"
+                    size={20}
+                    color={Colors[colorScheme ?? "light"].tint}
+                  />
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={{
                     marginRight: 16,
                     padding: 12,
                     minWidth: 44,
