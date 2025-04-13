@@ -9,6 +9,7 @@ import {
   Text,
   Alert,
   ActivityIndicator,
+  Keyboard,
 } from "react-native";
 
 import { Constants } from "@/constants/Constants";
@@ -19,6 +20,35 @@ import { IconSymbol } from "./ui/IconSymbol";
 import { useSpeechRecognition } from "@/hooks/useSpeechRecognition";
 
 export function ChatInput() {
+  // Get device height for responsive layout
+  const { height: deviceHeight } = Platform.OS === 'ios' 
+    ? require('react-native').Dimensions.get('window')
+    : { height: 0 };
+  
+  // Track keyboard visibility state
+  const [isKeyboardVisible, setIsKeyboardVisible] = useState(false);
+  
+  // Set up keyboard event listeners
+  useEffect(() => {
+    const keyboardWillShowListener = Keyboard.addListener(
+      Platform.OS === 'ios' ? 'keyboardWillShow' : 'keyboardDidShow',
+      () => {
+        setIsKeyboardVisible(true);
+      }
+    );
+    
+    const keyboardWillHideListener = Keyboard.addListener(
+      Platform.OS === 'ios' ? 'keyboardWillHide' : 'keyboardDidHide',
+      () => {
+        setIsKeyboardVisible(false);
+      }
+    );
+    
+    return () => {
+      keyboardWillShowListener.remove();
+      keyboardWillHideListener.remove();
+    };
+  }, []);
   const [text, setText] = useState("");
   const {
     hostname,
@@ -233,10 +263,15 @@ export function ChatInput() {
   const iconColor = useThemeColor({}, "icon");
 
   return (
-    <KeyboardAvoidingView
-      behavior={Platform.OS === "ios" ? "padding" : "height"}
-      keyboardVerticalOffset={Platform.OS === "ios" ? 96 : 0} // Adjust offset as needed
-      style={[styles.container, { backgroundColor, borderTopColor: dividerColor }]}
+    <View
+      style={[
+        styles.container, 
+        { 
+          backgroundColor, 
+          borderTopColor: dividerColor,
+          paddingBottom: isKeyboardVisible ? (Platform.OS === 'ios' ? 34 : 8) : 8 
+        }
+      ]}
     >
       {/* Error Banners */}
       {pendingErrorCount > 0 && (
@@ -353,14 +388,14 @@ export function ChatInput() {
           )}
         </View>
       )}
-    </KeyboardAvoidingView>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
     paddingHorizontal: 12,
-    paddingVertical: 8,
+    paddingTop: 8,
     borderTopWidth: StyleSheet.hairlineWidth,
   },
   errorBanner: {
@@ -391,7 +426,7 @@ const styles = StyleSheet.create({
   inputRow: {
     flexDirection: "row",
     alignItems: "flex-end",
-    marginBottom: 8, // Add margin below input row
+    marginBottom: 0, // Remove margin below input row
   },
   inputContainer: {
     flex: 1,

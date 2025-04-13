@@ -1,5 +1,15 @@
 import React, { useRef, useState, useEffect } from "react";
-import { FlatList, SafeAreaView, StyleSheet, View, TouchableOpacity, Animated, Keyboard, KeyboardAvoidingView, Platform } from "react-native";
+import { 
+  FlatList, 
+  SafeAreaView, 
+  StyleSheet, 
+  View, 
+  TouchableOpacity, 
+  Animated, 
+  Keyboard, 
+  KeyboardAvoidingView, 
+  Platform
+} from "react-native";
 import { Colors } from "@/constants/Colors";
 import { useColorScheme } from "@/hooks/useColorScheme";
 import { IconSymbol } from "@/components/ui/IconSymbol";
@@ -29,6 +39,45 @@ export default function ChatScreen() {
   // Track if user is at bottom of chat
   const [isAtBottom, setIsAtBottom] = useState(true);
   const scrollButtonOpacity = useRef(new Animated.Value(0)).current;
+  
+  // Track keyboard state
+  const [isKeyboardVisible, setIsKeyboardVisible] = useState(false);
+  const [keyboardHeight, setKeyboardHeight] = useState(0);
+  
+  // Track user scroll intent
+  const [isManuallyScrolling, setIsManuallyScrolling] = useState(false);
+  const scrollTimer = useRef<NodeJS.Timeout | null>(null);
+  
+  // Only dismiss keyboard on deliberate scrolling (not auto-scroll from typing)
+  const handleScroll = (event: any) => {
+    const offsetY = event.nativeEvent.contentOffset.y;
+    const contentHeight = event.nativeEvent.contentSize.height;
+    const scrollViewHeight = event.nativeEvent.layoutMeasurement.height;
+    
+    // Consider user at bottom if within 20px of bottom
+    const isClose = contentHeight - offsetY - scrollViewHeight < 20;
+    setIsAtBottom(isClose);
+    
+    // If this is a manual scroll event and keyboard is visible, dismiss it
+    if (isManuallyScrolling && isKeyboardVisible && !isAtBottom) {
+      Keyboard.dismiss();
+    }
+  };
+  
+  // Set manual scrolling flag on touch, with debounce to detect intentional scrolls
+  const handleScrollBeginDrag = () => {
+    setIsManuallyScrolling(true);
+    
+    // Clear any existing timer
+    if (scrollTimer.current) {
+      clearTimeout(scrollTimer.current);
+    }
+    
+    // Reset the flag after a delay
+    scrollTimer.current = setTimeout(() => {
+      setIsManuallyScrolling(false);
+    }, 1000);
+  };
 
   // Create a global tool results map
   const toolResultsMap = React.useMemo(() => {
@@ -78,20 +127,32 @@ export default function ChatScreen() {
     setIsAtBottom(true);
   };
   
-  // Setup keyboard event listeners to scroll to bottom when keyboard appears
+  // Setup keyboard event listeners
   useEffect(() => {
-    const keyboardDidShowListener = Keyboard.addListener(
+    const keyboardWillShowListener = Keyboard.addListener(
       Platform.OS === 'ios' ? 'keyboardWillShow' : 'keyboardDidShow',
-      () => {
+      (e) => {
+        setIsKeyboardVisible(true);
+        setKeyboardHeight(e.endCoordinates.height);
+        
         if (isAtBottom) {
           // Small delay to ensure layout has updated
           setTimeout(() => scrollToBottom(), 100);
         }
       }
     );
+    
+    const keyboardWillHideListener = Keyboard.addListener(
+      Platform.OS === 'ios' ? 'keyboardWillHide' : 'keyboardDidHide',
+      () => {
+        setIsKeyboardVisible(false);
+        setKeyboardHeight(0);
+      }
+    );
 
     return () => {
-      keyboardDidShowListener.remove();
+      keyboardWillShowListener.remove();
+      keyboardWillHideListener.remove();
     };
   }, [isAtBottom]);
 
@@ -119,41 +180,38 @@ export default function ChatScreen() {
       <KeyboardAvoidingView
         behavior={Platform.OS === "ios" ? "padding" : "height"}
         style={{ flex: 1 }}
-        keyboardVerticalOffset={Platform.OS === "ios" ? 90 : 0}
+        keyboardVerticalOffset={Platform.OS === "ios" ? 40 : 0}
       >
         <ThemedView style={styles.container}>
         {/* Chat Messages */}
-        <FlatList
-          ref={flatListRef}
-          data={filteredMessages}
-          keyExtractor={(item) => item.id}
-          renderItem={({ item }) => (
-            <View style={styles.messageItem}>
-              <ChatMessage 
-                message={item} 
-                toolResultsMap={toolResultsMap} 
-                shouldFadeSystem={filteredMessages.some(msg => msg.role === 'user')}
-              />
-            </View>
-          )}
-          ListFooterComponent={<LoadingIndicator />}
-          contentContainerStyle={styles.messagesContainer}
-          onContentSizeChange={() => {
-            if (!isTogglingCollapsible && isAtBottom) {
-              flatListRef.current?.scrollToEnd({ animated: true });
-            }
-          }}
-          onScroll={(event) => {
-            const offsetY = event.nativeEvent.contentOffset.y;
-            const contentHeight = event.nativeEvent.contentSize.height;
-            const scrollViewHeight = event.nativeEvent.layoutMeasurement.height;
-            
-            // Consider user at bottom if within 20px of bottom
-            const isClose = contentHeight - offsetY - scrollViewHeight < 20;
-            setIsAtBottom(isClose);
-          }}
-          scrollEventThrottle={200}
-        />
+        <View 
+          style={styles.flatListContainer}
+        >
+          <FlatList
+            ref={flatListRef}
+            data={filteredMessages}
+            keyExtractor={(item) => item.id}
+            renderItem={({ item }) => (
+              <View style={styles.messageItem}>
+                <ChatMessage 
+                  message={item} 
+                  toolResultsMap={toolResultsMap} 
+                  shouldFadeSystem={filteredMessages.some(msg => msg.role === 'user')}
+                />
+              </View>
+            )}
+            ListFooterComponent={<LoadingIndicator />}
+            contentContainerStyle={styles.messagesContainer}
+            onContentSizeChange={() => {
+              if (!isTogglingCollapsible && isAtBottom) {
+                flatListRef.current?.scrollToEnd({ animated: true });
+              }
+            }}
+            onScroll={handleScroll}
+            onScrollBeginDrag={handleScrollBeginDrag}
+            scrollEventThrottle={200}
+          />
+        </View>
         
         {/* Scroll to bottom button */}
         <Animated.View
@@ -198,6 +256,9 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   container: {
+    flex: 1,
+  },
+  flatListContainer: {
     flex: 1,
   },
   messagesContainer: {
