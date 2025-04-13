@@ -57,6 +57,15 @@ export default function Home() {
           the automatic error reporting system between Next.js and Claude.
         </p>
       </div>
+      
+      <div className="mt-6">
+        <button 
+          onClick={() => alert('Hello World')}
+          className="rounded-lg bg-gradient-to-r from-yellow-500 to-amber-500 px-6 py-3 text-white shadow-lg transition hover:scale-105 hover:shadow-xl"
+        >
+          Click Me!
+        </button>
+      </div>
     </main>
     </>
   );
