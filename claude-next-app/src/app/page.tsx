@@ -16,20 +16,17 @@ export default function Home() {
       </p>
       
       <div className="mt-4 flex flex-col gap-4 sm:flex-row">
-        <Link
-          href="/neon-gallery"
-          className="group rounded-lg border border-transparent px-5 py-4 transition-colors hover:border-gray-300 hover:bg-gray-100 hover:dark:border-neutral-700 hover:dark:bg-neutral-800/30"
-        >
+        <div className="group rounded-lg border border-transparent px-5 py-4 transition-colors hover:border-gray-300 hover:bg-gray-100 hover:dark:border-neutral-700 hover:dark:bg-neutral-800/30">
           <h2 className="mb-3 text-2xl font-semibold flex items-center gap-2">
-            Neon Gallery{' '}
+            Get Started{' '}
             <span className="inline-block transition-transform group-hover:translate-x-1 motion-reduce:transform-none text-purple-500">
               →
             </span>
           </h2>
           <p className="m-0 max-w-[30ch] text-sm opacity-70">
-            Explore a collection of neon-styled ASCII art and emojis.
+            Modify this page or create new components to explore the app.
           </p>
-        </Link>
+        </div>
       </div>
     </main>
   );

@@ -555,7 +555,7 @@ const styles = StyleSheet.create({
   },
   modalContent: {
     flex: 1,
-    margin: 20,
+    margin: 10,
     borderRadius: 16,
     overflow: "hidden",
     shadowColor: "#000",
@@ -569,6 +569,7 @@ const styles = StyleSheet.create({
     // Add max height to account for notches
     maxHeight: '85%',
     alignSelf: 'center',
+    width: '95%',
   },
   modalHeader: {
     flexDirection: "row",
