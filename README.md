@@ -1,8 +1,17 @@
 # Claude Code Go
 
-Mobile app for claude code.
+Mobile app and server for [claude code](https://github.com/anthropics/claude-code/).
 
-https://github.com/user-attachments/assets/572cc927-2af6-4af9-88bc-2b16e07f3344
+https://github.com/user-attachments/assets/26123e2d-cca4-4d95-8429-2ef3cc8a278d
+
+## Features
+
+- [x] Authenticate to your claude code go server
+- [x] File tree browsing to choose a directory for your project
+- [x] Spin up a preview web server to be able to see changes on your phone
+- [x] Prompt claude code and view its tool calls and messages on your phone. Use dictation to speak your changes into existence!
+- [x] Chat history of your previous chats
+- [x] Git commit and create a PR directly from mobile
 
 ## Getting started
 
@@ -12,17 +21,27 @@ Make sure that you have installed & run [claude code](https://docs.anthropic.com
 claude --dangerously-skip-permissions
 ```
 
-Then, run the following command to install dependencies:
+Then, clone the repo & run the following command to install dependencies. Note that you need node, npm, and python in order to run the server & expo go server. See [this](https://github.com/anthropics/claude-code/issues/771) for why the server is in python:
 
 ```shell
 npm install
 ```
 
-In 3 different terminal sessions, run the following commands:
+In 2 different terminal sessions, run the following commands:
 
 ```shell
 npm run start
 npm run server
+```
+
+To use the app on your phone, install [Expo Go](https://apps.apple.com/us/app/expo-go/id982107779) and use the QR code that appears from `npm run start` to get the app. (Use [Expo Go on Google Play](https://play.google.com/store/apps/details?id=host.exp.exponent&hl=en_US) for android).
+
+To login via your local network on your phone, use the hostname or IP address of the computer you've setup the claude-code-go server on, your username on that PC or Mac, and the password in the server/passwd file. 
+
+You should change the default password before starting the server. 
+
+Inside of the app, you can go to Settings -> Web Preview and use a command to run your web app for previews built in from there. By default it's setup to run:
+```shell
 npm run dev
 ```
 

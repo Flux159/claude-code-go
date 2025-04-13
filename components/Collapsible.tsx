@@ -1,17 +1,14 @@
-import { PropsWithChildren, useEffect, useState } from 'react';
+import { PropsWithChildren, useState } from 'react';
 import { StyleSheet, TouchableOpacity, View } from 'react-native';
 
 import { ThemedText } from '@/components/ThemedText';
 import { ThemedView } from '@/components/ThemedView';
 import { IconSymbol } from '@/components/ui/IconSymbol';
-import { Colors } from '@/constants/Colors';
 import { useAppContext } from '@/contexts/AppContext';
-import { useColorScheme } from '@/hooks/useColorScheme';
 import { useThemeColor } from '@/hooks/useThemeColor';
 
 export function Collapsible({ children, title }: PropsWithChildren & { title: string }) {
   const [isOpen, setIsOpen] = useState(false);
-  const theme = useColorScheme() ?? 'light';
   const { setIsTogglingCollapsible } = useAppContext();
   const tintColor = useThemeColor({}, 'tint');
   const textColor = useThemeColor({}, 'text');
@@ -33,11 +30,11 @@ export function Collapsible({ children, title }: PropsWithChildren & { title: st
       <ThemedView style={styles.container}>
         <View style={styles.heading}>
           <IconSymbol
-            name="chevron.right"
+            name={isOpen ? "xmark" : "chevron.right"}
             size={12}
             weight="medium"
-            color={theme === 'light' ? Colors.light.icon : Colors.dark.icon}
-            style={{ transform: [{ rotate: isOpen ? '90deg' : '0deg' }] }}
+            color={textColor}
+            style={isOpen ? {} : { transform: [{ rotate: '0deg' }] }}
           />
 
           <ThemedText style={[styles.title, { color: tintColor }]}>{title}</ThemedText>
@@ -62,7 +59,6 @@ const styles = StyleSheet.create({
   },
   title: {
     fontSize: 14,
-    fontWeight: 'bold',
   },
   preview: {
     marginLeft: 18,
@@ -73,7 +69,6 @@ const styles = StyleSheet.create({
   },
   content: {
     marginTop: 6,
-    marginLeft: 6,
     backgroundColor: 'transparent',
     width: '100%',
   },

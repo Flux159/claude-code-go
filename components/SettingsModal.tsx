@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useRef } from "react";
 import {
   ActivityIndicator,
   KeyboardAvoidingView,
@@ -77,7 +77,7 @@ function WebCommandControl({
   const fetchStatusInternal = async () => {
     // Get auth token
     const token = await AsyncStorage.getItem(TOKEN_STORAGE_KEY);
-    
+
     const response = await fetch(
       `http://${hostname}:${Constants.serverPort}/web-command`,
       {
@@ -102,10 +102,10 @@ function WebCommandControl({
     try {
       setIsStarting(true);
       const directory = currentDirectory || undefined; // Only send if we have a value
-      
+
       // Get auth token
       const token = await AsyncStorage.getItem(TOKEN_STORAGE_KEY);
-      
+
       const response = await fetch(
         `http://${hostname}:${Constants.serverPort}/web-command/start`,
         {
@@ -132,10 +132,10 @@ function WebCommandControl({
   const stopCommand = async () => {
     try {
       setIsStopping(true);
-      
+
       // Get auth token
       const token = await AsyncStorage.getItem(TOKEN_STORAGE_KEY);
-      
+
       const response = await fetch(
         `http://${hostname}:${Constants.serverPort}/web-command/stop`,
         {
@@ -162,10 +162,10 @@ function WebCommandControl({
     try {
       setIsRestarting(true);
       const directory = currentDirectory || undefined; // Only send if we have a value
-      
+
       // Get auth token
       const token = await AsyncStorage.getItem(TOKEN_STORAGE_KEY);
-      
+
       const response = await fetch(
         `http://${hostname}:${Constants.serverPort}/web-command/restart`,
         {
@@ -308,7 +308,6 @@ function ThemeSelector() {
 
   return (
     <View style={styles.themeSection}>
-      <ThemedText style={styles.themeSectionTitle}>Theme</ThemedText>
       <View style={styles.themeOptions}>
         {(["light", "dark", "auto"] as ThemePreference[]).map((theme) => {
           const { iconName, label, isActive } = getThemeOption(theme);
@@ -358,7 +357,8 @@ export function SettingsModal({ visible, onClose }: SettingsModalProps) {
   const [portError, setPortError] = useState("");
   const [activeTab, setActiveTab] = useState<TabName>("general");
   const [logs, setLogs] = useState<string[]>([]);
-  const [loading, setLoading] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
+  const scrollViewRef = useRef<ScrollView>(null);
   const backgroundColor = useThemeColor({}, "background");
   const textColor = useThemeColor({}, "text");
   const tintColor = useThemeColor({}, "tint");
@@ -391,10 +391,10 @@ export function SettingsModal({ visible, onClose }: SettingsModalProps) {
     if (!visible || activeTab !== "webCommand") return;
 
     try {
-      setLoading(true);
+      setIsLoading(true);
       await fetchLogsInternal();
     } finally {
-      setLoading(false);
+      setIsLoading(false);
     }
   };
 
@@ -413,7 +413,7 @@ export function SettingsModal({ visible, onClose }: SettingsModalProps) {
   const fetchLogsInternal = async () => {
     // Get auth token
     const token = await AsyncStorage.getItem(TOKEN_STORAGE_KEY);
-    
+
     const response = await fetch(
       `http://${hostname}:${Constants.serverPort}/web-command/logs?max=50`,
       {
@@ -525,45 +525,16 @@ export function SettingsModal({ visible, onClose }: SettingsModalProps) {
                 />
               </View>
 
-              <View style={styles.inputContainer}>
-                <ThemedText>Port</ThemedText>
-                <TextInput
-                  style={[
-                    styles.input,
-                    {
-                      backgroundColor,
-                      color: textColor,
-                      borderColor:
-                        Platform.OS === "ios" ? "#cccccc80" : "transparent",
-                      borderWidth: StyleSheet.hairlineWidth,
-                    },
-                  ]}
-                  value={portValue}
-                  onChangeText={(text) => {
-                    setPortValue(text);
-                    setPortError("");
-                  }}
-                  placeholder="3000"
-                  placeholderTextColor="#999"
-                  keyboardType="numeric"
-                  autoCapitalize="none"
-                  autoCorrect={false}
-                />
-                {portError ? (
-                  <ThemedText style={styles.errorText}>{portError}</ThemedText>
-                ) : null}
-              </View>
 
               {/* User account information */}
               <View style={styles.accountSection}>
-                <ThemedText style={styles.themeSectionTitle}>Account</ThemedText>
                 {username ? (
                   <View style={styles.userInfoRow}>
                     <View style={styles.userInfo}>
                       <ThemedText>Logged in as:</ThemedText>
                       <ThemedText style={styles.usernameText}>{username}</ThemedText>
                     </View>
-                    <TouchableOpacity 
+                    <TouchableOpacity
                       style={styles.logoutButton}
                       onPress={() => {
                         logout();
@@ -613,6 +584,35 @@ export function SettingsModal({ visible, onClose }: SettingsModalProps) {
                 </View>
               </View>
 
+              <View style={styles.inputContainer}>
+                <ThemedText>Port</ThemedText>
+                <TextInput
+                  style={[
+                    styles.input,
+                    {
+                      backgroundColor,
+                      color: textColor,
+                      borderColor:
+                        Platform.OS === "ios" ? "#cccccc80" : "transparent",
+                      borderWidth: StyleSheet.hairlineWidth,
+                    },
+                  ]}
+                  value={portValue}
+                  onChangeText={(text) => {
+                    setPortValue(text);
+                    setPortError("");
+                  }}
+                  placeholder="3000"
+                  placeholderTextColor="#999"
+                  keyboardType="numeric"
+                  autoCapitalize="none"
+                  autoCorrect={false}
+                />
+                {portError ? (
+                  <ThemedText style={styles.errorText}>{portError}</ThemedText>
+                ) : null}
+              </View>
+
               {/* Log viewer */}
               <View style={styles.logContainer}>
                 <View style={styles.logHeaderRow}>
@@ -626,26 +626,29 @@ export function SettingsModal({ visible, onClose }: SettingsModalProps) {
                   )}
                 </View>
 
-                {loading ? (
-                  <View style={styles.loaderContainer}>
-                    <ActivityIndicator size="small" color={tintColor} />
-                    <ThemedText style={styles.loaderText}>
-                      Loading logs...
+                <ScrollView
+                  ref={scrollViewRef}
+                  style={[
+                    styles.logScroll,
+                    {
+                      backgroundColor:
+                        Platform.OS === "ios"
+                          ? "rgba(0,0,0,0.05)"
+                          : "rgba(0,0,0,0.1)",
+                    },
+                  ]}
+                  onContentSizeChange={() => {
+                    if (scrollViewRef.current && logs.length > 0) {
+                      scrollViewRef.current.scrollToEnd({ animated: true });
+                    }
+                  }}
+                >
+                  {!isLoading && logs.length === 0 ? (
+                    <ThemedText style={styles.noLogsText}>
+                      No logs available
                     </ThemedText>
-                  </View>
-                ) : logs.length > 0 ? (
-                  <ScrollView
-                    style={[
-                      styles.logScroll,
-                      {
-                        backgroundColor:
-                          Platform.OS === "ios"
-                            ? "rgba(0,0,0,0.05)"
-                            : "rgba(0,0,0,0.1)",
-                      },
-                    ]}
-                  >
-                    {logs.map((log, index) => (
+                  ) : (
+                    !isLoading && logs.map((log, index) => (
                       <ThemedText
                         key={index}
                         style={[
@@ -655,13 +658,9 @@ export function SettingsModal({ visible, onClose }: SettingsModalProps) {
                       >
                         {log}
                       </ThemedText>
-                    ))}
-                  </ScrollView>
-                ) : (
-                  <ThemedText style={styles.noLogsText}>
-                    No logs available
-                  </ThemedText>
-                )}
+                    ))
+                  )}
+                </ScrollView>
 
                 {!isErrorMonitoringEnabled && (
                   <ThemedText style={styles.monitoringNote}>
@@ -904,13 +903,14 @@ const styles = StyleSheet.create({
   },
   logoutButton: {
     backgroundColor: "#FF6B6B",
-    paddingVertical: 8,
-    paddingHorizontal: 16,
     borderRadius: 5,
+    paddingVertical: 10,
+    paddingHorizontal: 20,
+    elevation: 2,
+    alignItems: "center",
   },
   logoutButtonText: {
     color: "white",
-    fontWeight: "500",
   },
   // Button container styles
   buttonContainer: {

@@ -37,6 +37,9 @@ interface GitDiff {
   error?: string;
 }
 
+// Expose fetchGitStatus globally
+let globalFetchGitStatus: (() => Promise<void>) | null = null;
+
 export default function GitChangesScreen() {
   const { hostname, currentDirectory } = useAppContext();
   const [isLoading, setIsLoading] = useState(false);
@@ -52,9 +55,7 @@ export default function GitChangesScreen() {
   const backgroundColor = useThemeColor({}, "background");
   const textColor = useThemeColor({}, "text");
   const tintColor = useThemeColor({}, "tint");
-  const borderColor = useThemeColor({}, "border");
-  const placeholderTextColor = useThemeColor({}, "placeholderText");
-  const highlightColor = useThemeColor({}, "highlight");
+  const dividerColor = useThemeColor({}, "divider");
 
   // Fetch diff for a specific file
   const fetchFileDiff = useCallback(
@@ -64,7 +65,7 @@ export default function GitChangesScreen() {
       try {
         // Get auth token
         const token = await AsyncStorage.getItem(TOKEN_STORAGE_KEY);
-        
+
         const response = await fetch(
           `http://${hostname}:${Constants.serverPort}/git/diff`,
           {
@@ -107,7 +108,7 @@ export default function GitChangesScreen() {
     try {
       // Get auth token
       const token = await AsyncStorage.getItem(TOKEN_STORAGE_KEY);
-      
+
       const response = await fetch(
         `http://${hostname}:${Constants.serverPort}/git/status`,
         {
@@ -163,7 +164,7 @@ export default function GitChangesScreen() {
     try {
       // Get auth token
       const token = await AsyncStorage.getItem(TOKEN_STORAGE_KEY);
-      
+
       const response = await fetch(
         `http://${hostname}:${Constants.serverPort}/git/reset-file`,
         {
@@ -227,7 +228,7 @@ export default function GitChangesScreen() {
     try {
       // Get auth token
       const token = await AsyncStorage.getItem(TOKEN_STORAGE_KEY);
-      
+
       const response = await fetch(
         `http://${hostname}:${Constants.serverPort}/reset`,
         {
@@ -271,7 +272,7 @@ export default function GitChangesScreen() {
     try {
       // Get auth token
       const token = await AsyncStorage.getItem(TOKEN_STORAGE_KEY);
-      
+
       const response = await fetch(
         `http://${hostname}:${Constants.serverPort}/git/commit`,
         {
@@ -292,11 +293,11 @@ export default function GitChangesScreen() {
       if (data.success) {
         setActionResult("Changes committed successfully");
         setCommitMessage("");
-        
+
         // Clear the diffs section
         setSelectedFile(null);
         setFileDiffs({});
-        
+
         // Refresh the Git status to update the file list
         fetchGitStatus();
       } else {
@@ -321,7 +322,7 @@ export default function GitChangesScreen() {
     try {
       // Get auth token
       const token = await AsyncStorage.getItem(TOKEN_STORAGE_KEY);
-      
+
       const response = await fetch(
         `http://${hostname}:${Constants.serverPort}/git/push`,
         {
@@ -362,12 +363,12 @@ export default function GitChangesScreen() {
     try {
       // Get auth token
       const token = await AsyncStorage.getItem(TOKEN_STORAGE_KEY);
-      
+
       // Use the commit message if provided, otherwise use a default title
-      const prTitle = commitMessage.trim() 
-        ? commitMessage 
+      const prTitle = commitMessage.trim()
+        ? commitMessage
         : "Create PR from current changes";
-      
+
       const response = await fetch(
         `http://${hostname}:${Constants.serverPort}/git/create-pr`,
         {
@@ -402,13 +403,21 @@ export default function GitChangesScreen() {
     }
   };
 
+  // Set global function reference
+  useEffect(() => {
+    globalFetchGitStatus = fetchGitStatus;
+    return () => {
+      globalFetchGitStatus = null;
+    };
+  }, [fetchGitStatus]);
+
   // Load Git status on component mount and when directory changes
   useEffect(() => {
     if (currentDirectory) {
       fetchGitStatus();
     }
   }, [currentDirectory, fetchGitStatus]);
-  
+
   // Refresh git status when the tab comes into focus
   useFocusEffect(
     useCallback(() => {
@@ -428,7 +437,7 @@ export default function GitChangesScreen() {
       case "modified_staged":
       case "modified_unstaged":
       case "modified_staged_and_unstaged":
-        return "#FFA726"; // Orange
+        return "#CC7C5E"; // Orange
       case "added":
         return "#66BB6A"; // Green
       case "deleted":
@@ -444,7 +453,7 @@ export default function GitChangesScreen() {
   // Render status icon
   const renderStatusIcon = (statusType: string) => {
     const color = getStatusColor(statusType);
-    let iconName = "circle.fill";
+    let iconName: any = "circle.fill";
 
     switch (statusType) {
       case "modified_staged":
@@ -475,7 +484,8 @@ export default function GitChangesScreen() {
       <TouchableOpacity
         style={[
           styles.fileItem,
-          isSelected && { backgroundColor: highlightColor },
+          { borderBottomColor: dividerColor },
+          isSelected && { backgroundColor: "rgba(0, 125, 255, 0.1)" },
         ]}
         onPress={() => handleFileSelect(item.path)}
       >
@@ -489,8 +499,8 @@ export default function GitChangesScreen() {
             onPress={() => handleResetFile(item.path)}
           >
             <IconSymbol
-              name="arrow.counterclockwise"
-              size={18}
+              name="trash"
+              size={16}
               color={tintColor}
             />
           </TouchableOpacity>
@@ -499,25 +509,12 @@ export default function GitChangesScreen() {
     );
   };
 
-  // Render header with refresh and clear all button
+  // Render header with changed files title and reset all button
   const renderHeader = () => (
     <View style={styles.header}>
-      <View style={{ flexDirection: "row", alignItems: "center" }}>
-        <ThemedText style={styles.headerTitle}>
-          Changed Files ({changedFiles.length})
-        </ThemedText>
-        <TouchableOpacity
-          style={styles.refreshButton}
-          onPress={() => fetchGitStatus()}
-          disabled={isLoading}
-        >
-          {isLoading ? (
-            <ActivityIndicator size="small" color={tintColor} />
-          ) : (
-            <IconSymbol name="arrow.clockwise" size={16} color={tintColor} />
-          )}
-        </TouchableOpacity>
-      </View>
+      <ThemedText style={styles.headerTitle}>
+        Changed Files ({changedFiles.length})
+      </ThemedText>
       {changedFiles.length > 0 && (
         <TouchableOpacity
           style={styles.resetAllButton}
@@ -556,7 +553,7 @@ export default function GitChangesScreen() {
     if (!selectedFile) {
       return (
         <View style={styles.emptyDiffContainer}>
-          <ThemedText>No file selected</ThemedText>
+          <ThemedText style={styles.emptyText}>No file selected</ThemedText>
         </View>
       );
     }
@@ -575,7 +572,7 @@ export default function GitChangesScreen() {
     if (diff.trim() === "") {
       return (
         <View style={styles.emptyDiffContainer}>
-          <ThemedText>No changes detected in this file</ThemedText>
+          <ThemedText style={styles.emptyText}>No changes detected in this file</ThemedText>
         </View>
       );
     }
@@ -620,9 +617,9 @@ export default function GitChangesScreen() {
             </ThemedText>
           </View>
         ) : (
-          <TouchableOpacity 
-            activeOpacity={1} 
-            style={{ flex: 1 }} 
+          <TouchableOpacity
+            activeOpacity={1}
+            style={{ flex: 1 }}
             onPress={dismissKeyboard}
           >
             {/* Split view: Files list on top, diff view below */}
@@ -649,7 +646,7 @@ export default function GitChangesScreen() {
 
               {/* Diff view */}
               <View style={styles.diffWrapper}>
-                <View style={styles.diffHeader}>
+                <View style={[styles.diffHeader, { borderBottomColor: dividerColor }]}>
                   <ThemedText style={styles.diffTitle}>
                     {selectedFile ? `Diff: ${selectedFile}` : "Diff"}
                   </ThemedText>
@@ -663,47 +660,46 @@ export default function GitChangesScreen() {
               <TextInput
                 style={[
                   styles.commitInput,
-                  { borderColor, color: textColor, backgroundColor },
+                  { borderColor: "#cccccc80", color: textColor, backgroundColor },
                 ]}
                 placeholder="Write commit message..."
-                placeholderTextColor={placeholderTextColor}
+                placeholderTextColor="#999"
                 value={commitMessage}
                 onChangeText={setCommitMessage}
                 multiline
-                blurOnSubmit={false}
               />
               <View style={styles.actionButtons}>
-              <TouchableOpacity
-                style={[styles.actionButton, styles.commitButton]}
-                onPress={handleCommit}
-                disabled={
-                  !commitMessage.trim() ||
-                  actionLoading ||
-                  changedFiles.length === 0
-                }
-              >
-                {actionLoading ? (
-                  <ActivityIndicator size="small" color="#fff" />
-                ) : (
-                  <Text style={styles.actionButtonText}>Commit</Text>
-                )}
-              </TouchableOpacity>
-              <TouchableOpacity
-                style={[styles.actionButton, styles.pushButton]}
-                onPress={handlePush}
-                disabled={actionLoading || changedFiles.length > 0}
-              >
-                <Text style={styles.actionButtonText}>Push</Text>
-              </TouchableOpacity>
-              <TouchableOpacity
-                style={[styles.actionButton, styles.prButton]}
-                onPress={handleCreatePR}
-                disabled={actionLoading} // Removed message requirement to create PR from current commits
-              >
-                <Text style={styles.actionButtonText}>Create PR</Text>
-              </TouchableOpacity>
+                <TouchableOpacity
+                  style={[styles.actionButton, styles.commitButton]}
+                  onPress={handleCommit}
+                  disabled={
+                    !commitMessage.trim() ||
+                    actionLoading ||
+                    changedFiles.length === 0
+                  }
+                >
+                  {actionLoading ? (
+                    <ActivityIndicator size="small" color="#fff" />
+                  ) : (
+                    <Text style={styles.actionButtonText}>Commit</Text>
+                  )}
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={[styles.actionButton, styles.pushButton]}
+                  onPress={handlePush}
+                  disabled={actionLoading || changedFiles.length > 0}
+                >
+                  <Text style={styles.actionButtonText}>Push</Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={[styles.actionButton, styles.prButton]}
+                  onPress={handleCreatePR}
+                  disabled={actionLoading} // Removed message requirement to create PR from current commits
+                >
+                  <Text style={styles.actionButtonText}>Create PR</Text>
+                </TouchableOpacity>
+              </View>
             </View>
-          </View>
           </TouchableOpacity>
         )}
       </ThemedView>
@@ -715,6 +711,16 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     padding: 16,
+  },
+  branchContainer: {
+    backgroundColor: "rgba(0, 0, 0, 0.05)",
+    padding: 12,
+    borderRadius: 6,
+    marginBottom: 16,
+  },
+  branchText: {
+    fontSize: 16,
+    fontWeight: "bold",
   },
   loadingContainer: {
     flex: 1,
@@ -751,36 +757,28 @@ const styles = StyleSheet.create({
   },
   filesContainer: {
     height: "40%",
-    marginBottom: 12,
-    borderRadius: 8,
+    marginBottom: 20,
     overflow: "hidden",
   },
   header: {
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
-    paddingVertical: 12,
-    paddingHorizontal: 16,
+    marginBottom: 16,
   },
   headerTitle: {
     fontSize: 16,
     fontWeight: "bold",
   },
-  refreshButton: {
-    padding: 6,
-    marginLeft: 8,
-    borderRadius: 20,
-  },
   resetAllButton: {
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 4,
+    paddingHorizontal: 18,
+    paddingVertical: 8,
+    borderRadius: 5,
     backgroundColor: "#EF5350",
   },
   resetAllButtonText: {
     color: "white",
-    fontSize: 12,
-    fontWeight: "bold",
+    fontSize: 14,
   },
   filesList: {
     flex: 1,
@@ -800,7 +798,7 @@ const styles = StyleSheet.create({
     alignItems: "center",
   },
   fileName: {
-    marginLeft: 8,
+    marginLeft: 10,
     fontSize: 14,
   },
   resetButton: {
@@ -813,7 +811,6 @@ const styles = StyleSheet.create({
   },
   diffHeader: {
     paddingVertical: 12,
-    paddingHorizontal: 16,
     borderBottomWidth: StyleSheet.hairlineWidth,
   },
   diffTitle: {
@@ -825,7 +822,7 @@ const styles = StyleSheet.create({
     padding: 8,
   },
   diffLine: {
-    fontFamily: "Menlo" || "Courier New" || "monospace",
+    fontFamily: Platform.OS === "ios" ? "Menlo" : "monospace",
     fontSize: 12,
     marginVertical: 1,
   },
@@ -841,21 +838,23 @@ const styles = StyleSheet.create({
   },
   emptyText: {
     fontSize: 16,
+    color: "#999",
   },
   commitContainer: {
     marginTop: 16,
   },
   commitInput: {
     height: 80,
-    borderWidth: 1,
+    borderWidth: StyleSheet.hairlineWidth,
     borderRadius: 8,
     padding: 12,
-    marginBottom: 12,
+    marginBottom: 16,
     textAlignVertical: "top",
   },
   actionButtons: {
     flexDirection: "row",
     justifyContent: "space-between",
+    gap: 16,
   },
   actionButton: {
     flex: 1,
@@ -863,20 +862,18 @@ const styles = StyleSheet.create({
     borderRadius: 8,
     justifyContent: "center",
     alignItems: "center",
-    marginHorizontal: 4,
   },
   commitButton: {
     backgroundColor: "#66BB6A",
   },
   pushButton: {
-    backgroundColor: "#42A5F5",
+    backgroundColor: "#007AFF",
   },
   prButton: {
-    backgroundColor: "#7E57C2",
+    backgroundColor: "#007AFF",
   },
   actionButtonText: {
     color: "white",
-    fontWeight: "bold",
-    fontSize: 14,
+    fontSize: 16,
   },
 });

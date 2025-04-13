@@ -25,6 +25,10 @@ const MAPPING = {
   "circle.bottomhalf.filled": "brightness_auto",
   "face.smiling": "emoji_emotions",
   "line.3.horizontal": "menu",
+  folder: "folder",
+  "doc.text": "description",
+  trash: "delete",
+  xmark: "close",
 } as Partial<
   Record<
     import("expo-symbols").SymbolViewProps["name"],

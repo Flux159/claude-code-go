@@ -134,7 +134,7 @@ export function FileTree({ isVisible, onClose }: FileTreeProps) {
       console.error("Error fetching directory:", error);
       setError(
         "Error loading initial directory: " +
-          (error instanceof Error ? error.message : String(error))
+        (error instanceof Error ? error.message : String(error))
       );
     } finally {
       setIsLoading(false);
@@ -149,7 +149,7 @@ export function FileTree({ isVisible, onClose }: FileTreeProps) {
 
       // Get auth token from AsyncStorage
       const token = await AsyncStorage.getItem('auth_token');
-      
+
       const response = await fetch(
         `http://${hostname}:${PYTHON_PORT}/directories`,
         {
@@ -179,7 +179,7 @@ export function FileTree({ isVisible, onClose }: FileTreeProps) {
       console.error("Error in loadDirectory:", error);
       setError(
         "Error loading directory: " +
-          (error instanceof Error ? error.message : String(error))
+        (error instanceof Error ? error.message : String(error))
       );
     } finally {
       setIsLoading(false);
@@ -230,7 +230,7 @@ export function FileTree({ isVisible, onClose }: FileTreeProps) {
             File Explorer
           </ThemedText>
           <TouchableOpacity onPress={onClose} style={styles.closeButton}>
-            <IconSymbol name="chevron.right" size={24} color={tintColor} />
+            <IconSymbol name="xmark" size={20} color={tintColor} />
           </TouchableOpacity>
         </View>
 
@@ -239,32 +239,35 @@ export function FileTree({ isVisible, onClose }: FileTreeProps) {
           <View style={styles.pathRow}>
             <ThemedText
               numberOfLines={1}
-              ellipsizeMode="middle"
+              ellipsizeMode="head"
               style={styles.pathText}
             >
               {currentDirectory}
             </ThemedText>
-            <TouchableOpacity
-              onPress={fetchInitialDirectory}
-              style={[
-                styles.resetButton,
-                {
-                  backgroundColor:
-                    backgroundColor === "#ffffff"
-                      ? "#f0f0f0"
-                      : "rgba(255,255,255,0.15)",
-                },
-              ]}
-              hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-            >
-              <View style={{ flexDirection: "row", alignItems: "center" }}>
-                <IconSymbol
-                  name="arrow.clockwise"
-                  size={16}
-                  color={tintColor}
-                />
-              </View>
-            </TouchableOpacity>
+            {/* Refresh button hidden for now */}
+            {false && (
+              <TouchableOpacity
+                onPress={fetchInitialDirectory}
+                style={[
+                  styles.resetButton,
+                  {
+                    backgroundColor:
+                      backgroundColor === "#ffffff"
+                        ? "#f0f0f0"
+                        : "rgba(255,255,255,0.15)",
+                  },
+                ]}
+                hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+              >
+                <View style={{ flexDirection: "row", alignItems: "center" }}>
+                  <IconSymbol
+                    name="arrow.clockwise"
+                    size={16}
+                    color={tintColor}
+                  />
+                </View>
+              </TouchableOpacity>
+            )}
           </View>
         </View>
 
@@ -295,7 +298,7 @@ export function FileTree({ isVisible, onClose }: FileTreeProps) {
                 style={styles.fileItem}
                 onPress={navigateToParent}
               >
-                <IconSymbol name="arrow.up" size={20} color={tintColor} />
+                <IconSymbol name="arrow.up" size={16} color={tintColor} />
                 <ThemedText style={styles.fileName}>
                   Parent Directory
                 </ThemedText>
@@ -315,7 +318,7 @@ export function FileTree({ isVisible, onClose }: FileTreeProps) {
                   style={styles.fileItem}
                   onPress={() => handleFileItemPress(item)}
                 >
-                  <IconSymbol name="house" size={20} color={tintColor} />
+                  <IconSymbol name="folder" size={16} color={tintColor} />
                   <ThemedText
                     style={styles.fileName}
                     numberOfLines={1}
@@ -337,7 +340,7 @@ export function FileTree({ isVisible, onClose }: FileTreeProps) {
                   key={item.path + index}
                   style={styles.fileItem}
                 >
-                  <IconSymbol name="message.fill" size={20} color={tintColor} />
+                  <IconSymbol name="doc.text" size={16} color={tintColor} />
                   <ThemedText
                     style={styles.fileName}
                     numberOfLines={1}
