@@ -242,11 +242,34 @@ export function ChatMessage({ message, toolResultsMap = {} }: ChatMessageProps) 
   const codeBorderColor = useThemeColor({}, 'codeBorder');
   const dividerColor = useThemeColor({}, 'divider');
 
-  // Format the timestamp
-  const formattedTime = message.timestamp.toLocaleTimeString([], {
-    hour: '2-digit',
-    minute: '2-digit',
-  });
+  // Format the timestamp (handle both Date objects and serialized date strings)
+  const formattedTime = (() => {
+    try {
+      if (!message.timestamp) return '';
+      
+      // If it's already a Date object with the method
+      if (message.timestamp instanceof Date && typeof message.timestamp.toLocaleTimeString === 'function') {
+        return message.timestamp.toLocaleTimeString([], {
+          hour: '2-digit',
+          minute: '2-digit',
+        });
+      }
+      
+      // If it's a serialized date string
+      const date = new Date(message.timestamp);
+      if (!isNaN(date.getTime())) {
+        return date.toLocaleTimeString([], {
+          hour: '2-digit',
+          minute: '2-digit',
+        });
+      }
+      
+      return '';
+    } catch (error) {
+      console.error('Error formatting timestamp:', error);
+      return '';
+    }
+  })();
 
   // Define the type for processed content items
   type ProcessedContentItem = {

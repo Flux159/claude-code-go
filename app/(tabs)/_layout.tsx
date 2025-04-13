@@ -11,6 +11,7 @@ import { useColorScheme } from "@/hooks/useColorScheme";
 import { useThemeColor } from "@/hooks/useThemeColor";
 import { FileTree } from "@/components/FileTree";
 import { ThemedText } from "@/components/ThemedText";
+import { ChatHistory } from "@/components/ChatHistory";
 
 declare global {
   var webViewRef: any;
@@ -26,6 +27,8 @@ export default function TabLayout() {
     pendingErrorCount,
     updatePendingErrorCount,
     currentDirectory,
+    chatHistoryVisible,
+    setChatHistoryVisible
   } = useAppContext();
   const displayUrl = `${hostname}:${port}`;
   const [fileTreeVisible, setFileTreeVisible] = useState(false);
@@ -47,6 +50,10 @@ export default function TabLayout() {
       <FileTree
         isVisible={fileTreeVisible}
         onClose={() => setFileTreeVisible(false)}
+      />
+      <ChatHistory
+        isVisible={chatHistoryVisible}
+        onClose={() => setChatHistoryVisible(false)}
       />
       <Tabs
         screenOptions={{
@@ -125,6 +132,24 @@ export default function TabLayout() {
                     alignItems: "center",
                     justifyContent: "center",
                   }}
+                  onPress={() => setChatHistoryVisible(true)}
+                  hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+                >
+                  <IconSymbol
+                    name="text.bubble"
+                    size={20}
+                    color={Colors[colorScheme ?? "light"].tint}
+                  />
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={{
+                    marginLeft: 8,
+                    padding: 12,
+                    minWidth: 44,
+                    minHeight: 44,
+                    alignItems: "center",
+                    justifyContent: "center",
+                  }}
                   onPress={() => setFileTreeVisible(true)}
                   hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
                 >
@@ -195,6 +220,24 @@ export default function TabLayout() {
                 <TouchableOpacity
                   style={{
                     marginLeft: 16,
+                    padding: 12,
+                    minWidth: 44,
+                    minHeight: 44,
+                    alignItems: "center",
+                    justifyContent: "center",
+                  }}
+                  onPress={() => setChatHistoryVisible(true)}
+                  hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+                >
+                  <IconSymbol
+                    name="text.bubble"
+                    size={20}
+                    color={Colors[colorScheme ?? "light"].tint}
+                  />
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={{
+                    marginLeft: 8,
                     padding: 12,
                     minWidth: 44,
                     minHeight: 44,
@@ -283,6 +326,24 @@ export default function TabLayout() {
                 <TouchableOpacity
                   style={{
                     marginLeft: 16,
+                    padding: 12,
+                    minWidth: 44,
+                    minHeight: 44,
+                    alignItems: "center",
+                    justifyContent: "center",
+                  }}
+                  onPress={() => setChatHistoryVisible(true)}
+                  hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+                >
+                  <IconSymbol
+                    name="text.bubble"
+                    size={20}
+                    color={Colors[colorScheme ?? "light"].tint}
+                  />
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={{
+                    marginLeft: 8,
                     padding: 12,
                     minWidth: 44,
                     minHeight: 44,
