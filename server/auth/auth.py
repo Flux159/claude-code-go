@@ -14,19 +14,21 @@ def get_current_username():
     return getpass.getuser()
 
 def get_password_from_file():
-    """Get the password from the passwd file"""
+    """Get the password from the passwd file in user's home directory or use default"""
     try:
-        passwd_path = Path(os.path.dirname(os.path.abspath(__file__))) / "../passwd"
-        if not passwd_path.exists():
-            # Create default password file if it doesn't exist
-            with open(passwd_path, "w") as f:
-                f.write("password123")
+        # Check for password file in user's home directory
+        home_passwd_path = Path.home() / ".claudecodego" / "passwd"
         
-        with open(passwd_path, "r") as f:
-            return f.read().strip()
+        if home_passwd_path.exists():
+            with open(home_passwd_path, "r") as f:
+                return f.read().strip()
+        else:
+            # If no password file in home directory, use hardcoded default
+            return "password123"
     except Exception as e:
         print(f"Error reading password file: {e}")
-        return None
+        # Fall back to default password
+        return "password123"
 
 def authenticate_user(username, password):
     """Authenticate a user by username and password"""
