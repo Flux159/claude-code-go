@@ -180,10 +180,7 @@ export default function ChatScreen() {
       <KeyboardAvoidingView
         behavior={Platform.OS === "ios" ? "padding" : "height"}
         style={{ flex: 1 }}
-        keyboardVerticalOffset={Platform.OS === "ios" ? 
-          // Get screen dimensions to determine if it's a newer or older iPhone
-          require('react-native').Dimensions.get('window').height >= 812 ? 0 : 24
-        : 0}
+        keyboardVerticalOffset={Platform.OS === "ios" ? 40 : 0}
       >
         <ThemedView style={styles.container}>
         {/* Chat Messages */}
