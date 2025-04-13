@@ -10,14 +10,17 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 
 import { IconSymbol } from "@/components/ui/IconSymbol";
 import { ThemePreference, useAppContext } from "@/contexts/AppContext";
+import { useAuth } from "@/contexts/AuthContext";
 import { Constants } from "@/constants/Constants";
 import { useColorScheme } from "@/hooks/useColorScheme";
 import { useThemeColor } from "@/hooks/useThemeColor";
 import { ThemedText } from "./ThemedText";
 import { ThemedView } from "./ThemedView";
+import { TOKEN_STORAGE_KEY } from "@/utils/api";
 
 interface SettingsModalProps {
   visible: boolean;
@@ -72,6 +75,9 @@ function WebCommandControl({
 
   // Internal status fetching function
   const fetchStatusInternal = async () => {
+    // Get auth token
+    const token = await AsyncStorage.getItem(TOKEN_STORAGE_KEY);
+    
     const response = await fetch(
       `http://${hostname}:${Constants.serverPort}/web-command`,
       {
@@ -79,6 +85,7 @@ function WebCommandControl({
         headers: {
           Accept: "application/json",
           "Content-Type": "application/json",
+          "Authorization": token ? `Bearer: ${token}` : "",
         },
       }
     );
@@ -95,6 +102,10 @@ function WebCommandControl({
     try {
       setIsStarting(true);
       const directory = currentDirectory || undefined; // Only send if we have a value
+      
+      // Get auth token
+      const token = await AsyncStorage.getItem(TOKEN_STORAGE_KEY);
+      
       const response = await fetch(
         `http://${hostname}:${Constants.serverPort}/web-command/start`,
         {
@@ -102,6 +113,7 @@ function WebCommandControl({
           headers: {
             Accept: "application/json",
             "Content-Type": "application/json",
+            "Authorization": token ? `Bearer: ${token}` : "",
           },
           body: JSON.stringify({ command, directory }),
         }
@@ -120,6 +132,10 @@ function WebCommandControl({
   const stopCommand = async () => {
     try {
       setIsStopping(true);
+      
+      // Get auth token
+      const token = await AsyncStorage.getItem(TOKEN_STORAGE_KEY);
+      
       const response = await fetch(
         `http://${hostname}:${Constants.serverPort}/web-command/stop`,
         {
@@ -127,6 +143,7 @@ function WebCommandControl({
           headers: {
             Accept: "application/json",
             "Content-Type": "application/json",
+            "Authorization": token ? `Bearer: ${token}` : "",
           },
         }
       );
@@ -145,6 +162,10 @@ function WebCommandControl({
     try {
       setIsRestarting(true);
       const directory = currentDirectory || undefined; // Only send if we have a value
+      
+      // Get auth token
+      const token = await AsyncStorage.getItem(TOKEN_STORAGE_KEY);
+      
       const response = await fetch(
         `http://${hostname}:${Constants.serverPort}/web-command/restart`,
         {
@@ -152,6 +173,7 @@ function WebCommandControl({
           headers: {
             Accept: "application/json",
             "Content-Type": "application/json",
+            "Authorization": token ? `Bearer: ${token}` : "",
           },
           body: JSON.stringify({ command, directory }),
         }
@@ -329,6 +351,7 @@ export function SettingsModal({ visible, onClose }: SettingsModalProps) {
     setWebCommand,
     isErrorMonitoringEnabled,
   } = useAppContext();
+  const { username, logout } = useAuth();
   const [hostnameValue, setHostnameValue] = useState(hostname);
   const [portValue, setPortValue] = useState(port.toString());
   const [webCommandValue, setWebCommandValue] = useState(webCommand);
@@ -388,6 +411,9 @@ export function SettingsModal({ visible, onClose }: SettingsModalProps) {
 
   // Internal function to fetch logs
   const fetchLogsInternal = async () => {
+    // Get auth token
+    const token = await AsyncStorage.getItem(TOKEN_STORAGE_KEY);
+    
     const response = await fetch(
       `http://${hostname}:${Constants.serverPort}/web-command/logs?max=50`,
       {
@@ -395,6 +421,7 @@ export function SettingsModal({ visible, onClose }: SettingsModalProps) {
         headers: {
           Accept: "application/json",
           "Content-Type": "application/json",
+          "Authorization": token ? `Bearer: ${token}` : "",
         },
       }
     );
@@ -525,6 +552,32 @@ export function SettingsModal({ visible, onClose }: SettingsModalProps) {
                 {portError ? (
                   <ThemedText style={styles.errorText}>{portError}</ThemedText>
                 ) : null}
+              </View>
+
+              {/* User account information */}
+              <View style={styles.accountSection}>
+                <ThemedText style={styles.themeSectionTitle}>Account</ThemedText>
+                {username ? (
+                  <View style={styles.userInfoRow}>
+                    <View style={styles.userInfo}>
+                      <ThemedText>Logged in as:</ThemedText>
+                      <ThemedText style={styles.usernameText}>{username}</ThemedText>
+                    </View>
+                    <TouchableOpacity 
+                      style={styles.logoutButton}
+                      onPress={() => {
+                        logout();
+                        onClose();
+                      }}
+                    >
+                      <ThemedText style={styles.logoutButtonText}>Log Out</ThemedText>
+                    </TouchableOpacity>
+                  </View>
+                ) : (
+                  <ThemedText style={styles.notLoggedInText}>
+                    Not logged in
+                  </ThemedText>
+                )}
               </View>
 
               {/* Theme selector */}
@@ -825,6 +878,39 @@ const styles = StyleSheet.create({
   themeButtonLabel: {
     marginTop: 6,
     fontSize: 12,
+  },
+  // Account section styles
+  accountSection: {
+    marginBottom: 20,
+  },
+  userInfoRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    paddingVertical: 12,
+    paddingHorizontal: 4,
+  },
+  userInfo: {
+    flex: 1,
+  },
+  usernameText: {
+    fontWeight: "500",
+    marginTop: 4,
+  },
+  notLoggedInText: {
+    fontStyle: "italic",
+    opacity: 0.7,
+    paddingVertical: 12,
+  },
+  logoutButton: {
+    backgroundColor: "#FF6B6B",
+    paddingVertical: 8,
+    paddingHorizontal: 16,
+    borderRadius: 5,
+  },
+  logoutButtonText: {
+    color: "white",
+    fontWeight: "500",
   },
   // Button container styles
   buttonContainer: {

@@ -8,7 +8,10 @@ import {
   Animated,
   TouchableWithoutFeedback,
   Dimensions,
+  Alert,
+  Platform,
 } from "react-native";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 import { ThemedView } from "@/components/ThemedView";
 import { ThemedText } from "@/components/ThemedText";
 import { useColorScheme } from "@/hooks/useColorScheme";
@@ -29,7 +32,14 @@ export function ChatHistory({ isVisible, onClose }: ChatHistoryProps) {
   const translateX = useRef(new Animated.Value(-300)).current;
   const opacity = useRef(new Animated.Value(0)).current;
   const [localVisible, setLocalVisible] = useState(isVisible);
-  const { chats, currentChatId, switchChat, clearMessages } = useAppContext();
+  const {
+    chats,
+    currentChatId,
+    switchChat,
+    clearMessages,
+    setChatHistoryVisible,
+    setChats,
+  } = useAppContext();
 
   // Get theme-aware colors
   const backgroundColor = useThemeColor({}, "background");
@@ -80,39 +90,42 @@ export function ChatHistory({ isVisible, onClose }: ChatHistoryProps) {
 
   // Format the chat time
   const formatChatTime = (timestamp: Date | string) => {
-    if (!timestamp) return '';
+    if (!timestamp) return "";
     try {
       // Make sure we have a Date object
       const date = timestamp instanceof Date ? timestamp : new Date(timestamp);
-      
+
       // Check if the date is valid
       if (isNaN(date.getTime())) {
-        return '';
+        return "";
       }
-      
-      return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+
+      return date.toLocaleTimeString([], {
+        hour: "2-digit",
+        minute: "2-digit",
+      });
     } catch (error) {
-      console.error('Error formatting chat time:', error);
-      return '';
+      console.error("Error formatting chat time:", error);
+      return "";
     }
   };
 
   // Format the chat date
   const formatChatDate = (timestamp: Date | string) => {
-    if (!timestamp) return 'Unknown Date';
+    if (!timestamp) return "Unknown Date";
     try {
       // Make sure we have a Date object
       const date = timestamp instanceof Date ? timestamp : new Date(timestamp);
-      
+
       // Check if the date is valid
       if (isNaN(date.getTime())) {
-        return 'Unknown Date';
+        return "Unknown Date";
       }
-      
+
       return date.toLocaleDateString();
     } catch (error) {
-      console.error('Error formatting chat date:', error);
-      return 'Unknown Date';
+      console.error("Error formatting chat date:", error);
+      return "Unknown Date";
     }
   };
 
@@ -121,15 +134,17 @@ export function ChatHistory({ isVisible, onClose }: ChatHistoryProps) {
     if (!chat || !chat.messages || !Array.isArray(chat.messages)) {
       return "New conversation";
     }
-    
-    const userMessage = chat.messages.find(msg => msg && msg.role === 'user');
+
+    const userMessage = chat.messages.find((msg) => msg && msg.role === "user");
     if (!userMessage || !userMessage.content) return "New conversation";
-    
-    const textContent = userMessage.content.find(content => content && content.type === 'text');
+
+    const textContent = userMessage.content.find(
+      (content) => content && content.type === "text"
+    );
     if (!textContent || !textContent.text) return "No content";
-    
-    return textContent.text.length > 50 
-      ? textContent.text.substring(0, 50) + '...' 
+
+    return textContent.text.length > 50
+      ? textContent.text.substring(0, 50) + "..."
       : textContent.text;
   };
 
@@ -138,7 +153,7 @@ export function ChatHistory({ isVisible, onClose }: ChatHistoryProps) {
   // Group chats by date
   const chatsByDate = chats.reduce((acc, chat) => {
     if (!chat || !chat.timestamp) return acc;
-    
+
     const date = formatChatDate(chat.timestamp);
     if (!acc[date]) {
       acc[date] = [];
@@ -184,6 +199,82 @@ export function ChatHistory({ isVisible, onClose }: ChatHistoryProps) {
             >
               <IconSymbol name="plus.square" size={20} color={tintColor} />
             </TouchableOpacity>
+            <TouchableOpacity
+              onPress={() => {
+                const clearAllChatsExceptCurrent = () => {
+                  const currentChat = chats.find(
+                    (chat) => chat.id === currentChatId
+                  );
+                  if (currentChat) {
+                    // Keep only the current chat
+                    const updatedChats = [currentChat];
+
+                    // Update local state first for immediate UI update
+                    const updatedChatsWithTimeFixing = updatedChats.map(
+                      (chat) => ({
+                        ...chat,
+                        timestamp:
+                          chat.timestamp instanceof Date
+                            ? chat.timestamp
+                            : new Date(chat.timestamp),
+                        messages: Array.isArray(chat.messages)
+                          ? chat.messages.map((msg) => ({
+                              ...msg,
+                              timestamp:
+                                msg.timestamp instanceof Date
+                                  ? msg.timestamp
+                                  : new Date(msg.timestamp),
+                            }))
+                          : [],
+                      })
+                    );
+
+                    // This is a workaround since we don't have direct access to setChats
+                    // Instead of just closing, we'll reload the page to force a refresh
+                    AsyncStorage.setItem(
+                      "app_chats",
+                      JSON.stringify(updatedChats)
+                    )
+                      .then(() => {
+                        // On web we can do a refresh, on mobile we'll just close the dialog
+                        if (Platform.OS === "web") {
+                          window.location.reload();
+                        } else {
+                          setChats(updatedChatsWithTimeFixing);
+                          onClose();
+                        }
+                      })
+                      .catch((error) =>
+                        console.error("Failed to save chats:", error)
+                      );
+                  }
+                };
+
+                if (Platform.OS === "web") {
+                  // For web, we use a simple confirm
+                  if (confirm("Clear all chat history except current chat?")) {
+                    clearAllChatsExceptCurrent();
+                  }
+                } else {
+                  // For mobile, use Alert
+                  Alert.alert(
+                    "Clear Chat History",
+                    "Are you sure you want to clear all chat history except the current chat?",
+                    [
+                      { text: "Cancel", style: "cancel" },
+                      {
+                        text: "Clear",
+                        style: "destructive",
+                        onPress: clearAllChatsExceptCurrent,
+                      },
+                    ]
+                  );
+                }
+              }}
+              style={styles.clearButton}
+            >
+              <IconSymbol name="trash" size={20} color={tintColor} />
+            </TouchableOpacity>
             <TouchableOpacity onPress={onClose} style={styles.closeButton}>
               <IconSymbol name="chevron.right" size={24} color={tintColor} />
             </TouchableOpacity>
@@ -191,38 +282,42 @@ export function ChatHistory({ isVisible, onClose }: ChatHistoryProps) {
         </View>
 
         <ScrollView style={styles.chatList}>
-          {sortedDates.map(date => (
+          {sortedDates.map((date) => (
             <View key={date}>
               <ThemedText style={styles.dateHeader}>{date}</ThemedText>
               {chatsByDate[date]
                 .sort((a, b) => {
                   // Safe timestamp comparison
-                  const timeA = a.timestamp ? new Date(a.timestamp).getTime() : 0;
-                  const timeB = b.timestamp ? new Date(b.timestamp).getTime() : 0;
+                  const timeA = a.timestamp
+                    ? new Date(a.timestamp).getTime()
+                    : 0;
+                  const timeB = b.timestamp
+                    ? new Date(b.timestamp).getTime()
+                    : 0;
                   return timeB - timeA;
                 })
-                .map(chat => (
+                .map((chat) => (
                   <TouchableOpacity
                     key={chat.id}
                     style={[
                       styles.chatItem,
-                      chat.id === currentChatId && styles.activeChatItem
+                      chat.id === currentChatId && styles.activeChatItem,
                     ]}
                     onPress={() => handleChatSelect(chat.id)}
                   >
                     <View style={styles.chatItemContent}>
-                      <ThemedText 
+                      <ThemedText
                         style={[
                           styles.chatTime,
-                          chat.id === currentChatId && styles.activeChatText
+                          chat.id === currentChatId && styles.activeChatText,
                         ]}
                       >
                         {formatChatTime(chat.timestamp)}
                       </ThemedText>
-                      <ThemedText 
+                      <ThemedText
                         style={[
                           styles.chatPreview,
-                          chat.id === currentChatId && styles.activeChatText
+                          chat.id === currentChatId && styles.activeChatText,
                         ]}
                         numberOfLines={2}
                       >
@@ -230,7 +325,11 @@ export function ChatHistory({ isVisible, onClose }: ChatHistoryProps) {
                       </ThemedText>
                     </View>
                     {chat.id === currentChatId && (
-                      <IconSymbol name="checkmark" size={16} color={tintColor} />
+                      <IconSymbol
+                        name="checkmark"
+                        size={16}
+                        color={tintColor}
+                      />
                     )}
                   </TouchableOpacity>
                 ))}
@@ -292,13 +391,17 @@ const styles = StyleSheet.create({
     fontSize: 18,
   },
   headerButtons: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    flexDirection: "row",
+    alignItems: "center",
   },
   closeButton: {
     padding: 4,
   },
   newButton: {
+    padding: 8,
+    marginRight: 8,
+  },
+  clearButton: {
     padding: 8,
     marginRight: 8,
   },

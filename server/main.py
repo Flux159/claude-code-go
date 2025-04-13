@@ -11,7 +11,16 @@ import threading
 import psutil
 from collections import deque
 
+# Add the parent directory to sys.path to allow imports from the root
+sys.path.insert(0, os.path.abspath(os.path.dirname(os.path.dirname(__file__))))
+
+# Now import from auth module
+from server.auth import token_required, authenticate_user, create_access_token
+from server.auth.cors_middleware import handle_cors
+
 app = Flask(__name__)
+# Setup CORS handling
+handle_cors(app)
 
 # Store recent errors for automatic inclusion in Claude prompts
 # Using a deque for a fixed-size FIFO queue
@@ -254,7 +263,35 @@ def stop_web_command():
             return False
 
 
+# Auth routes
+@app.route("/auth/login", methods=["POST"])
+def login():
+    try:
+        data = request.get_json()
+        username = data.get("username")
+        password = data.get("password")
+
+        if not username or not password:
+            return jsonify({"error": "Username and password are required"}), 400
+
+        if authenticate_user(username, password):
+            access_token = create_access_token(username)
+            return jsonify({"access_token": access_token, "username": username}), 200
+        else:
+            return jsonify({"error": "Invalid credentials"}), 401
+    except Exception as e:
+        return jsonify({"error": f"Login failed: {str(e)}"}), 500
+
+
+@app.route("/auth/ping", methods=["GET"])
+@token_required
+def ping():
+    """Simple endpoint to check if the user is authenticated"""
+    return jsonify({"message": "Authenticated", "username": request.username}), 200
+
+
 @app.route("/directories", methods=["GET"])
+@token_required
 def get_directories():
     try:
         relative = (
@@ -276,6 +313,7 @@ def get_directories():
 
 
 @app.route("/directories", methods=["POST"])
+@token_required
 def list_directory():
     try:
         data = request.get_json()
@@ -300,6 +338,7 @@ def list_directory():
 
 
 @app.route("/report-error", methods=["POST"])
+@token_required
 def report_error():
     """Endpoint to receive errors from the Next.js application"""
     try:
@@ -358,6 +397,7 @@ def report_error():
 
 
 @app.route("/prompt", methods=["POST"])
+@token_required
 def execute_command():
     try:
         print("\n" + "-" * 80)
@@ -573,6 +613,7 @@ def generate_sse_response(command: str, directory: str, include_errors: bool = T
 
 
 @app.route("/promptstream", methods=["GET"])
+@token_required
 def prompt_stream_get():
     command = request.args.get("command")
     directory = request.args.get("directory")
@@ -593,6 +634,7 @@ def prompt_stream_get():
 
 
 @app.route("/promptstream", methods=["POST"])
+@token_required
 def prompt_stream_post():
     data = request.get_json()
     command = data.get("command")
@@ -614,6 +656,7 @@ def prompt_stream_post():
 
 
 @app.route("/errors", methods=["GET"])
+@token_required
 def get_errors():
     """Endpoint to retrieve current stored errors"""
     error_count = len(recent_errors)
@@ -638,6 +681,7 @@ def get_errors():
 
 
 @app.route("/clear-errors", methods=["POST"])
+@token_required
 def clear_errors():
     """Endpoint to manually clear all stored errors"""
     try:
@@ -676,7 +720,38 @@ def get_git_command():
         return "git"
 
 
+def is_git_repo_dir(directory):
+    """Check if directory is a git or sl repository using proper commands."""
+    git_cmd = get_git_command()
+    
+    if git_cmd == "git":
+        # Use git rev-parse to check if it's a valid git repository
+        repo_check = subprocess.run(
+            f"{git_cmd} rev-parse --is-inside-work-tree",
+            cwd=directory,
+            shell=True,
+            capture_output=True,
+            text=True,
+        )
+        is_git_repo = repo_check.returncode == 0 and repo_check.stdout.strip() == "true"
+        is_sl_repo = False
+    else:
+        # For sl, use 'sl root' command which returns the root of the repo
+        repo_check = subprocess.run(
+            f"{git_cmd} root",
+            cwd=directory,
+            shell=True,
+            capture_output=True,
+            text=True,
+        )
+        is_sl_repo = repo_check.returncode == 0 and repo_check.stdout.strip() != ""
+        is_git_repo = False
+    
+    return is_git_repo, is_sl_repo
+
+
 @app.route("/git/status", methods=["POST"])
+@token_required
 def git_status():
     """Get the status of the git repository."""
     try:
@@ -687,12 +762,9 @@ def git_status():
             return jsonify({"error": "Directory path is required"}), 400
 
         git_cmd = get_git_command()
-
+        
         # Check if directory is a git or sl repository
-        is_git_repo = os.path.exists(os.path.join(directory, ".git"))
-
-        # For sl, check for existence of .sl directory
-        is_sl_repo = os.path.exists(os.path.join(directory, ".sl"))
+        is_git_repo, is_sl_repo = is_git_repo_dir(directory)
 
         if not is_git_repo and not is_sl_repo:
             return jsonify({"error": "Not a git or sl repository"}), 400
@@ -840,6 +912,7 @@ def git_status():
 
 
 @app.route("/git/diff", methods=["POST"])
+@token_required
 def git_diff():
     """Get the diff of a specific file or all files."""
     try:
@@ -853,8 +926,7 @@ def git_diff():
         git_cmd = get_git_command()
 
         # Check if directory is a git or sl repository
-        is_git_repo = os.path.exists(os.path.join(directory, ".git"))
-        is_sl_repo = os.path.exists(os.path.join(directory, ".sl"))
+        is_git_repo, is_sl_repo = is_git_repo_dir(directory)
 
         if not is_git_repo and not is_sl_repo:
             return jsonify({"error": "Not a git or sl repository"}), 400
@@ -893,6 +965,7 @@ def git_diff():
 
 
 @app.route("/git/reset-file", methods=["POST"])
+@token_required
 def git_reset_file():
     """Reset changes to a specific file."""
     try:
@@ -909,8 +982,7 @@ def git_reset_file():
         git_cmd = get_git_command()
 
         # Check if directory is a git or sl repository
-        is_git_repo = os.path.exists(os.path.join(directory, ".git"))
-        is_sl_repo = os.path.exists(os.path.join(directory, ".sl"))
+        is_git_repo, is_sl_repo = is_git_repo_dir(directory)
 
         if not is_git_repo and not is_sl_repo:
             return jsonify({"error": "Not a git or sl repository"}), 400
@@ -971,6 +1043,7 @@ def git_reset_file():
 
 
 @app.route("/git/commit", methods=["POST"])
+@token_required
 def git_commit():
     """Create a new commit with the provided message."""
     try:
@@ -990,18 +1063,39 @@ def git_commit():
         git_cmd = get_git_command()
 
         # Check if directory is a git or sl repository
-        is_git_repo = os.path.exists(os.path.join(directory, ".git"))
-        is_sl_repo = os.path.exists(os.path.join(directory, ".sl"))
+        is_git_repo, is_sl_repo = is_git_repo_dir(directory)
 
         if not is_git_repo and not is_sl_repo:
             return jsonify({"error": "Not a git or sl repository"}), 400
 
-        # Stage the files
-        if files:
-            # Stage specific files
-            for file in files:
+        # Stage the files - different approach for git vs sapling
+        if git_cmd == "git":
+            # Git staging
+            if files:
+                # Stage specific files
+                for file in files:
+                    stage_result = subprocess.run(
+                        f"{git_cmd} add {file}",
+                        cwd=directory,
+                        shell=True,
+                        capture_output=True,
+                        text=True,
+                    )
+                    if stage_result.returncode != 0:
+                        return (
+                            jsonify(
+                                {
+                                    "success": False,
+                                    "error": f"Failed to stage file {file}",
+                                    "details": stage_result.stderr,
+                                }
+                            ),
+                            400,
+                        )
+            else:
+                # Stage all changes
                 stage_result = subprocess.run(
-                    f"{git_cmd} add {file}",
+                    f"{git_cmd} add -A",
                     cwd=directory,
                     shell=True,
                     capture_output=True,
@@ -1012,36 +1106,65 @@ def git_commit():
                         jsonify(
                             {
                                 "success": False,
-                                "error": f"Failed to stage file {file}",
+                                "error": "Failed to stage changes",
                                 "details": stage_result.stderr,
                             }
                         ),
                         400,
                     )
         else:
-            # Stage all changes
-            stage_result = subprocess.run(
-                f"{git_cmd} add -A",
-                cwd=directory,
-                shell=True,
-                capture_output=True,
-                text=True,
-            )
-            if stage_result.returncode != 0:
-                return (
-                    jsonify(
-                        {
-                            "success": False,
-                            "error": "Failed to stage changes",
-                            "details": stage_result.stderr,
-                        }
-                    ),
-                    400,
+            # Sapling staging - use addremove to track new files and remove deleted ones
+            if files:
+                # Stage specific files
+                for file in files:
+                    stage_result = subprocess.run(
+                        f"{git_cmd} add {file}",
+                        cwd=directory,
+                        shell=True,
+                        capture_output=True,
+                        text=True,
+                    )
+                    if stage_result.returncode != 0:
+                        return (
+                            jsonify(
+                                {
+                                    "success": False,
+                                    "error": f"Failed to stage file {file}",
+                                    "details": stage_result.stderr,
+                                }
+                            ),
+                            400,
+                        )
+            else:
+                # Use addremove for all changes
+                stage_result = subprocess.run(
+                    f"{git_cmd} addremove",
+                    cwd=directory,
+                    shell=True,
+                    capture_output=True,
+                    text=True,
                 )
+                if stage_result.returncode != 0:
+                    return (
+                        jsonify(
+                            {
+                                "success": False,
+                                "error": "Failed to stage changes with sl addremove",
+                                "details": stage_result.stderr,
+                            }
+                        ),
+                        400,
+                    )
 
-        # Create the commit
+        # Create the commit (with different syntax for sapling)
+        if git_cmd == "git":
+            commit_cmd = f'{git_cmd} commit -m "{message}"'
+        else:
+            # Use sl commit -m for sapling
+            commit_cmd = f'{git_cmd} commit -m "{message}"'
+
         commit_result = subprocess.run(
-            f'{git_cmd} commit -m "{message}"',
+            commit_cmd,
             cwd=directory,
             shell=True,
             capture_output=True,
@@ -1069,6 +1192,7 @@ def git_commit():
 
 
 @app.route("/git/push", methods=["POST"])
+@token_required
 def git_push():
     """Push changes to the remote repository."""
     try:
@@ -1083,8 +1207,7 @@ def git_push():
         git_cmd = get_git_command()
 
         # Check if directory is a git or sl repository
-        is_git_repo = os.path.exists(os.path.join(directory, ".git"))
-        is_sl_repo = os.path.exists(os.path.join(directory, ".sl"))
+        is_git_repo, is_sl_repo = is_git_repo_dir(directory)
 
         if not is_git_repo and not is_sl_repo:
             return jsonify({"error": "Not a git or sl repository"}), 400
@@ -1120,12 +1243,13 @@ def git_push():
 
 
 @app.route("/git/create-pr", methods=["POST"])
+@token_required
 def git_create_pr():
     """Create a pull request."""
     try:
         data = request.get_json()
         directory = data.get("directory")
-        title = data.get("title")
+        title = data.get("title", "PR from Claude Code Go")
         body = data.get("body", "")
         base = data.get("base", "main")  # Default to main branch
         head = data.get("head", "")  # Source branch
@@ -1133,26 +1257,87 @@ def git_create_pr():
         if not directory:
             return jsonify({"error": "Directory path is required"}), 400
 
-        if not title:
-            return jsonify({"error": "PR title is required"}), 400
-
         # Check if directory is a git or sl repository
-        is_git_repo = os.path.exists(os.path.join(directory, ".git"))
-        is_sl_repo = os.path.exists(os.path.join(directory, ".sl"))
+        is_git_repo, is_sl_repo = is_git_repo_dir(directory)
 
         if not is_git_repo and not is_sl_repo:
             return jsonify({"error": "Not a git or sl repository"}), 400
 
-        # Check if the gh CLI is installed
-        try:
-            gh_version = subprocess.run(
-                "gh --version",
+        git_cmd = get_git_command()
+
+        # For sapling, use sl pr submit; for git use gh CLI
+        if git_cmd == "sl":
+            # Create PR command using sapling
+            # In sapling, we can create a PR even when there are no uncommitted changes
+            # The command will submit the current commits that haven't been pushed yet
+            
+            # First, let's check the current branch
+            branch_cmd = subprocess.run(
+                f"{git_cmd} branch --show-current",
                 cwd=directory,
                 shell=True,
                 capture_output=True,
                 text=True,
             )
-            if gh_version.returncode != 0:
+            current_branch = branch_cmd.stdout.strip()
+            print(f"Current branch: {current_branch}")
+            
+            # Ensure we have commits that can be submitted
+            log_cmd = subprocess.run(
+                f"{git_cmd} log -n 1",
+                cwd=directory,
+                shell=True,
+                capture_output=True,
+                text=True,
+            )
+            print(f"Latest commit: {log_cmd.stdout}")
+            
+            # Just use the simple 'sl pr submit' command without any options
+            # Sapling will use the commit message for PR title/description
+            pr_cmd = f'{git_cmd} pr submit'
+            
+            # Print the simple command we're using
+            print(f"Using simple Sapling PR command: {pr_cmd}")
+            
+            # Commenting out the push before PR submit since it might be 
+            # interfering with the PR creation process
+            # print("Attempting to push before creating PR...")
+            # push_cmd = subprocess.run(
+            #     f"{git_cmd} push",
+            #     cwd=directory,
+            #     shell=True,
+            #     capture_output=True,
+            #     text=True,
+            # )
+            # print(f"Push result: {push_cmd.returncode}, stdout: {push_cmd.stdout}")
+            
+            # Add a short delay to ensure any file system operations complete
+            print("Preparing to create PR...")
+            import time
+            time.sleep(1)
+            
+            # Note: sapling automatically determines the target branch
+        else:
+            # For git repos, check if the gh CLI is installed
+            try:
+                gh_version = subprocess.run(
+                    "gh --version",
+                    cwd=directory,
+                    shell=True,
+                    capture_output=True,
+                    text=True,
+                )
+                if gh_version.returncode != 0:
+                    return (
+                        jsonify(
+                            {
+                                "success": False,
+                                "error": "GitHub CLI (gh) is not installed or not properly configured",
+                            }
+                        ),
+                        400,
+                    )
+            except Exception:
                 return (
                     jsonify(
                         {
@@ -1162,27 +1347,18 @@ def git_create_pr():
                     ),
                     400,
                 )
-        except Exception:
-            return (
-                jsonify(
-                    {
-                        "success": False,
-                        "error": "GitHub CLI (gh) is not installed or not properly configured",
-                    }
-                ),
-                400,
-            )
 
-        # Create PR command
-        pr_cmd = f'gh pr create --title "{title}"'
-        if body:
-            pr_cmd = f'{pr_cmd} --body "{body}"'
-        if base:
-            pr_cmd = f"{pr_cmd} --base {base}"
-        if head:
-            pr_cmd = f"{pr_cmd} --head {head}"
+            # Create PR command using GitHub CLI
+            pr_cmd = f'gh pr create --title "{title}"'
+            if body:
+                pr_cmd = f'{pr_cmd} --body "{body}"'
+            if base:
+                pr_cmd = f"{pr_cmd} --base {base}"
+            if head:
+                pr_cmd = f"{pr_cmd} --head {head}"
 
         # Create the PR
+        print(f"Executing PR command: {pr_cmd} in directory: {directory}")
         pr_result = subprocess.run(
             pr_cmd,
             cwd=directory,
@@ -1190,12 +1366,37 @@ def git_create_pr():
             capture_output=True,
             text=True,
         )
-
+        
+        print(f"PR command result: returncode={pr_result.returncode}")
+        print(f"PR command stdout: {pr_result.stdout}")
+        print(f"PR command stderr: {pr_result.stderr}")
+        
+        # For Sapling, check if there's an error message in stdout or stderr
+        success = pr_result.returncode == 0
+        error_message = None
+        
+        # Sometimes sapling returns success but has error messages in the output
+        if git_cmd == "sl" and success:
+            if "error:" in pr_result.stdout.lower() or "error:" in pr_result.stderr.lower():
+                success = False
+                error_message = pr_result.stdout if "error:" in pr_result.stdout.lower() else pr_result.stderr
+                print(f"Detected error in Sapling PR output: {error_message}")
+        
+        # For debugging, also check if no PR URL was returned
+        if git_cmd == "sl" and success and "http" not in pr_result.stdout.lower():
+            print("Warning: No PR URL found in Sapling output, but command succeeded")
+            
+        # Removing alternative approach to simplify the process
+        if git_cmd == "sl" and not success:
+            print("PR creation failed, check server logs for details")
+                
         return jsonify(
             {
-                "success": pr_result.returncode == 0,
+                "success": success,
                 "stdout": pr_result.stdout,
                 "stderr": pr_result.stderr,
+                "error": error_message,
+                "command": pr_cmd  # Include the command for debugging
             }
         )
     except Exception as e:
@@ -1212,6 +1413,7 @@ def git_create_pr():
 
 
 @app.route("/reset", methods=["POST"])
+@token_required
 def git_reset():
     try:
         data = request.get_json()
@@ -1223,8 +1425,7 @@ def git_reset():
         git_cmd = get_git_command()
 
         # Check if directory is a git or sl repository
-        is_git_repo = os.path.exists(os.path.join(directory, ".git"))
-        is_sl_repo = os.path.exists(os.path.join(directory, ".sl"))
+        is_git_repo, is_sl_repo = is_git_repo_dir(directory)
 
         if not is_git_repo and not is_sl_repo:
             return jsonify({"error": "Not a git or sl repository"}), 400
@@ -1288,6 +1489,7 @@ def git_reset():
 
 
 @app.route("/web-command", methods=["GET"])
+@token_required
 def get_web_command_status():
     """Get the status of the web command process."""
     with web_command_lock:
@@ -1321,6 +1523,7 @@ def get_web_command_status():
 
 
 @app.route("/web-command/start", methods=["POST"])
+@token_required
 def start_web_command_endpoint():
     """Start the web command process."""
     try:
@@ -1350,6 +1553,7 @@ def start_web_command_endpoint():
 
 
 @app.route("/web-command/stop", methods=["POST"])
+@token_required
 def stop_web_command_endpoint():
     """Stop the web command process."""
     try:
@@ -1369,6 +1573,7 @@ def stop_web_command_endpoint():
 
 
 @app.route("/web-command/restart", methods=["POST"])
+@token_required
 def restart_web_command_endpoint():
     """Restart the web command process."""
     try:
@@ -1411,6 +1616,7 @@ def restart_web_command_endpoint():
 
 
 @app.route("/web-command/output", methods=["GET"])
+@token_required
 def get_web_command_output():
     """Get the output of the web command process."""
     try:
@@ -1439,6 +1645,7 @@ def get_web_command_output():
 
 
 @app.route("/web-command/logs", methods=["GET"])
+@token_required
 def get_web_command_logs():
     """Get the logs of the web command process."""
     try:
