@@ -48,20 +48,24 @@ export default function TabLayout() {
   // Create a pan responder for swipe detection
   const panResponder = React.useRef(
     PanResponder.create({
-      onStartShouldSetPanResponder: (evt, gestureState) => true,
-      onStartShouldSetPanResponderCapture: (evt, gestureState) => true,
+      onStartShouldSetPanResponder: () => false, // Don't capture taps, only gestures
+      onStartShouldSetPanResponderCapture: () => false, // Don't capture taps
       onMoveShouldSetPanResponder: (evt, gestureState) => {
         // Only respond to horizontal movements starting from left edge
         const { dx, dy, moveX } = gestureState;
-        return moveX < 50 && Math.abs(dx) > Math.abs(dy) && dx > 20;
+        // Ignore if near the hamburger menu icon (top 100px) to prevent interference
+        const locationY = evt.nativeEvent.locationY;
+        if (locationY < 100) {
+          return false;
+        }
+        return moveX < 30 && Math.abs(dx) > Math.abs(dy) && dx > 20;
       },
-      onPanResponderGrant: (evt, gestureState) => {
-        console.log("Pan responder granted:", gestureState.x0, gestureState.y0);
+      onPanResponderGrant: () => {
+        // Grant the gesture without logging
       },
       onPanResponderMove: (evt, gestureState) => {
         // If swiping right from the left edge
         if (gestureState.dx > 50) {
-          console.log("Opening menu from swipe:", gestureState.dx);
           setFileTreeVisible(true);
         }
       },
@@ -365,10 +369,10 @@ const styles = StyleSheet.create({
   },
   gestureContainer: {
     position: 'absolute', 
-    top: 0,
+    top: 100, // Start below the header to avoid interfering with the hamburger menu
     left: 0,
     bottom: 0,
-    width: 50, // Match the edgeWidth
+    width: 20, // Narrower to only detect edge swipes
     zIndex: 100,
     // Uncomment to debug:
     // backgroundColor: 'rgba(255,0,0,0.1)',
