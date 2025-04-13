@@ -1,15 +1,18 @@
 import React, { useRef } from 'react';
-import { FlatList, SafeAreaView, StyleSheet, View } from 'react-native';
+import { FlatList, SafeAreaView, StyleSheet, View, Text } from 'react-native';
 
 import { ChatInput } from '@/components/ChatInput';
 import { ChatMessage, LoadingDots } from '@/components/ChatMessage';
 import { SettingsModal } from '@/components/SettingsModal';
 import { ThemedView } from '@/components/ThemedView';
+import { ThemedText } from '@/components/ThemedText';
 import { useAppContext } from '@/contexts/AppContext';
+import { useAuth } from '@/contexts/AuthContext';
 import { useThemeColor } from '@/hooks/useThemeColor';
 
 export default function ChatScreen() {
   const { messages, isResponseLoading, settingsVisible, setSettingsVisible, isTogglingCollapsible } = useAppContext();
+  const { username } = useAuth();
   const flatListRef = useRef<FlatList>(null);
   const assistantBubbleColor = useThemeColor({}, 'assistantBubble');
 

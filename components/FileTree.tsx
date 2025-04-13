@@ -11,6 +11,7 @@ import {
   Platform,
   ActivityIndicator,
 } from "react-native";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 import { ThemedView } from "@/components/ThemedView";
 import { ThemedText } from "@/components/ThemedText";
 import { useColorScheme } from "@/hooks/useColorScheme";
@@ -106,8 +107,16 @@ export function FileTree({ isVisible, onClose }: FileTreeProps) {
       setError("");
       setDirectoryContents([]); // Clear current contents
 
+      // Get auth token from AsyncStorage
+      const token = await AsyncStorage.getItem('auth_token');
+
       const response = await fetch(
-        `http://${hostname}:${PYTHON_PORT}/directories`
+        `http://${hostname}:${PYTHON_PORT}/directories`,
+        {
+          headers: {
+            "Authorization": token ? `Bearer: ${token}` : "",
+          }
+        }
       );
       const data = await response.json();
 
@@ -138,12 +147,16 @@ export function FileTree({ isVisible, onClose }: FileTreeProps) {
       setIsLoading(true);
       setError("");
 
+      // Get auth token from AsyncStorage
+      const token = await AsyncStorage.getItem('auth_token');
+      
       const response = await fetch(
         `http://${hostname}:${PYTHON_PORT}/directories`,
         {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
+            "Authorization": token ? `Bearer: ${token}` : "",
           },
           body: JSON.stringify({ directory: directoryPath }),
         }
