@@ -720,6 +720,36 @@ def get_git_command():
         return "git"
 
 
+def is_git_repo_dir(directory):
+    """Check if directory is a git or sl repository using proper commands."""
+    git_cmd = get_git_command()
+    
+    if git_cmd == "git":
+        # Use git rev-parse to check if it's a valid git repository
+        repo_check = subprocess.run(
+            f"{git_cmd} rev-parse --is-inside-work-tree",
+            cwd=directory,
+            shell=True,
+            capture_output=True,
+            text=True,
+        )
+        is_git_repo = repo_check.returncode == 0 and repo_check.stdout.strip() == "true"
+        is_sl_repo = False
+    else:
+        # For sl, use 'sl root' command which returns the root of the repo
+        repo_check = subprocess.run(
+            f"{git_cmd} root",
+            cwd=directory,
+            shell=True,
+            capture_output=True,
+            text=True,
+        )
+        is_sl_repo = repo_check.returncode == 0 and repo_check.stdout.strip() != ""
+        is_git_repo = False
+    
+    return is_git_repo, is_sl_repo
+
+
 @app.route("/git/status", methods=["POST"])
 @token_required
 def git_status():
@@ -732,12 +762,9 @@ def git_status():
             return jsonify({"error": "Directory path is required"}), 400
 
         git_cmd = get_git_command()
-
+        
         # Check if directory is a git or sl repository
-        is_git_repo = os.path.exists(os.path.join(directory, ".git"))
-
-        # For sl, check for existence of .sl directory
-        is_sl_repo = os.path.exists(os.path.join(directory, ".sl"))
+        is_git_repo, is_sl_repo = is_git_repo_dir(directory)
 
         if not is_git_repo and not is_sl_repo:
             return jsonify({"error": "Not a git or sl repository"}), 400
@@ -899,8 +926,7 @@ def git_diff():
         git_cmd = get_git_command()
 
         # Check if directory is a git or sl repository
-        is_git_repo = os.path.exists(os.path.join(directory, ".git"))
-        is_sl_repo = os.path.exists(os.path.join(directory, ".sl"))
+        is_git_repo, is_sl_repo = is_git_repo_dir(directory)
 
         if not is_git_repo and not is_sl_repo:
             return jsonify({"error": "Not a git or sl repository"}), 400
@@ -956,8 +982,7 @@ def git_reset_file():
         git_cmd = get_git_command()
 
         # Check if directory is a git or sl repository
-        is_git_repo = os.path.exists(os.path.join(directory, ".git"))
-        is_sl_repo = os.path.exists(os.path.join(directory, ".sl"))
+        is_git_repo, is_sl_repo = is_git_repo_dir(directory)
 
         if not is_git_repo and not is_sl_repo:
             return jsonify({"error": "Not a git or sl repository"}), 400
@@ -1038,8 +1063,7 @@ def git_commit():
         git_cmd = get_git_command()
 
         # Check if directory is a git or sl repository
-        is_git_repo = os.path.exists(os.path.join(directory, ".git"))
-        is_sl_repo = os.path.exists(os.path.join(directory, ".sl"))
+        is_git_repo, is_sl_repo = is_git_repo_dir(directory)
 
         if not is_git_repo and not is_sl_repo:
             return jsonify({"error": "Not a git or sl repository"}), 400
@@ -1183,8 +1207,7 @@ def git_push():
         git_cmd = get_git_command()
 
         # Check if directory is a git or sl repository
-        is_git_repo = os.path.exists(os.path.join(directory, ".git"))
-        is_sl_repo = os.path.exists(os.path.join(directory, ".sl"))
+        is_git_repo, is_sl_repo = is_git_repo_dir(directory)
 
         if not is_git_repo and not is_sl_repo:
             return jsonify({"error": "Not a git or sl repository"}), 400
@@ -1235,8 +1258,7 @@ def git_create_pr():
             return jsonify({"error": "Directory path is required"}), 400
 
         # Check if directory is a git or sl repository
-        is_git_repo = os.path.exists(os.path.join(directory, ".git"))
-        is_sl_repo = os.path.exists(os.path.join(directory, ".sl"))
+        is_git_repo, is_sl_repo = is_git_repo_dir(directory)
 
         if not is_git_repo and not is_sl_repo:
             return jsonify({"error": "Not a git or sl repository"}), 400
@@ -1403,8 +1425,7 @@ def git_reset():
         git_cmd = get_git_command()
 
         # Check if directory is a git or sl repository
-        is_git_repo = os.path.exists(os.path.join(directory, ".git"))
-        is_sl_repo = os.path.exists(os.path.join(directory, ".sl"))
+        is_git_repo, is_sl_repo = is_git_repo_dir(directory)
 
         if not is_git_repo and not is_sl_repo:
             return jsonify({"error": "Not a git or sl repository"}), 400
