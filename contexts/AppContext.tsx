@@ -65,6 +65,7 @@ interface AppContextType {
   currentDirectory: string;
   setCurrentDirectory: (directory: string) => void;
   chats: Chat[];
+  setChats: (chats: Chat[]) => void;
   currentChatId: string;
   switchChat: (chatId: string) => void;
   chatHistoryVisible: boolean;
@@ -97,6 +98,7 @@ const defaultContext: AppContextType = {
   currentDirectory: "",
   setCurrentDirectory: () => {},
   chats: [],
+  setChats: () => {},
   currentChatId: "",
   switchChat: () => {},
   chatHistoryVisible: false,
@@ -660,6 +662,30 @@ export function AppProvider({ children }: AppProviderProps) {
   ) => {
     let retries = 0;
 
+    // Get auth token if needed
+    const needsAuth = Constants.authEndpoints
+      ? !Constants.authEndpoints.some((endpoint) => url.includes(endpoint))
+      : true;
+
+    if (needsAuth) {
+      try {
+        const token = await AsyncStorage.getItem("auth_token");
+        if (token) {
+          // Ensure headers object exists in options
+          if (!options.headers) {
+            options.headers = {};
+          }
+
+          // Add authorization header with token
+          (options.headers as Record<string, string>)[
+            "Authorization"
+          ] = `Bearer: ${token}`;
+        }
+      } catch (error) {
+        console.error("Error getting auth token:", error);
+      }
+    }
+
     while (retries <= maxRetries) {
       try {
         const controller = new AbortController();
@@ -674,6 +700,19 @@ export function AppProvider({ children }: AppProviderProps) {
 
         if (response.ok) {
           return await response.json();
+        } else if (response.status === 401) {
+          // Token might be expired - attempt to refresh token or redirect to login
+          console.warn("Authentication error - token may have expired");
+
+          // Notify user about authentication issue
+          const authErrorEvent = new CustomEvent("auth_error", {
+            detail: {
+              message: "Your session has expired. Please log in again.",
+            },
+          });
+          document.dispatchEvent(authErrorEvent);
+
+          throw new Error("Authentication failed");
         } else {
           console.warn(
             `Attempt ${retries + 1}/${maxRetries + 1} failed with status: ${
@@ -786,10 +825,28 @@ export function AppProvider({ children }: AppProviderProps) {
     }
   };
 
+  // Get the authentication status from localStorage
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
+
+  // Check authentication on load
+  useEffect(() => {
+    const checkAuth = async () => {
+      try {
+        const token = await AsyncStorage.getItem("auth_token");
+        setIsAuthenticated(!!token);
+      } catch (error) {
+        console.error("Failed to check authentication status:", error);
+        setIsAuthenticated(false);
+      }
+    };
+
+    checkAuth();
+  }, []);
+
   // Poll for errors, but less frequently and with better error handling
   useEffect(() => {
-    // If error monitoring is disabled, clear any existing errors
-    if (!isErrorMonitoringEnabled) {
+    // Don't check for errors if not authenticated or if error monitoring is disabled
+    if (!isAuthenticated || !isErrorMonitoringEnabled) {
       clearPendingErrors().catch(console.error);
       return;
     }
@@ -801,7 +858,7 @@ export function AppProvider({ children }: AppProviderProps) {
     const INTERVAL_MS = 300000; // 5 min == 300 seconds
     const intervalId = setInterval(updatePendingErrorCount, INTERVAL_MS);
     return () => clearInterval(intervalId);
-  }, [hostname, isErrorMonitoringEnabled]);
+  }, [hostname, isErrorMonitoringEnabled, isAuthenticated]);
 
   // Custom setter for theme preference that also saves to AsyncStorage
   const updateThemePreference = async (newTheme: ThemePreference) => {
@@ -839,6 +896,7 @@ export function AppProvider({ children }: AppProviderProps) {
     currentDirectory,
     setCurrentDirectory,
     chats,
+    setChats,
     currentChatId,
     switchChat,
     chatHistoryVisible,

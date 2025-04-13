@@ -1,3 +1,4 @@
 flask==3.0.2
 watchdog==3.0.0  # Improves hot reloading
 psutil==5.9.8    # Process management for web commands
+pyjwt==2.10.1    # JWT token authentication
