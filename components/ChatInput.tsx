@@ -34,6 +34,7 @@ export function ChatInput() {
   const backgroundColor = useThemeColor({}, "background");
   const textColor = useThemeColor({}, "text");
   const tintColor = useThemeColor({}, "tint");
+  const dividerColor = useThemeColor({}, "divider");
   const errorColor = "#ff6b6b";
   const processingColor = "#f0ad4e"; // Orange for processing
 
@@ -234,8 +235,8 @@ export function ChatInput() {
   return (
     <KeyboardAvoidingView
       behavior={Platform.OS === "ios" ? "padding" : "height"}
-      keyboardVerticalOffset={Platform.OS === "ios" ? 90 : 0} // Adjust offset as needed
-      style={[styles.container, { backgroundColor }]}
+      keyboardVerticalOffset={Platform.OS === "ios" ? 96 : 0} // Adjust offset as needed
+      style={[styles.container, { backgroundColor, borderTopColor: dividerColor }]}
     >
       {/* Error Banners */}
       {pendingErrorCount > 0 && (
@@ -273,7 +274,7 @@ export function ChatInput() {
           <TextInput
             style={[styles.input, { color: textColor }]}
             placeholder="Message Claude..."
-            placeholderTextColor="#888"
+            placeholderTextColor="#999"
             value={text}
             onChangeText={setText}
             multiline
@@ -360,8 +361,7 @@ const styles = StyleSheet.create({
   container: {
     paddingHorizontal: 12,
     paddingVertical: 8,
-    borderTopWidth: 1,
-    borderTopColor: "#2a2a2a",
+    borderTopWidth: StyleSheet.hairlineWidth,
   },
   errorBanner: {
     backgroundColor: "#ff6b6b20",
@@ -395,8 +395,8 @@ const styles = StyleSheet.create({
   },
   inputContainer: {
     flex: 1,
-    borderWidth: 1,
-    borderColor: "#444",
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: "#CCCCCC80",
     borderRadius: 20,
     paddingLeft: 16,
     paddingRight: 12,
@@ -415,14 +415,14 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     gap: 8,
     alignItems: "flex-end", // Align buttons to bottom
-    paddingBottom: 2, // Fine-tune alignment with text input
+    // paddingBottom: 2, // Fine-tune alignment with text input
   },
   iconButton: {
     width: 40,
     height: 40,
     borderRadius: 20,
-    borderWidth: 1,
-    borderColor: "#444",
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: "#CCCCCC80",
     justifyContent: "center",
     alignItems: "center",
     paddingTop: Platform.OS === "ios" ? 10 : 8,

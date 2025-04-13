@@ -657,7 +657,7 @@ export default function GitChangesScreen() {
               <TextInput
                 style={[
                   styles.commitInput,
-                  { borderColor: "#cccccc80", color: textColor, backgroundColor },
+                  { borderColor: "#CCCCCC80", color: textColor, backgroundColor },
                 ]}
                 placeholder="Write commit message..."
                 placeholderTextColor="#999"

@@ -511,8 +511,7 @@ export function SettingsModal({ visible, onClose }: SettingsModalProps) {
                     {
                       backgroundColor,
                       color: textColor,
-                      borderColor:
-                        Platform.OS === "ios" ? "#cccccc80" : "transparent",
+                      borderColor: "#CCCCCC80",
                       borderWidth: StyleSheet.hairlineWidth,
                     },
                   ]}
@@ -565,8 +564,7 @@ export function SettingsModal({ visible, onClose }: SettingsModalProps) {
                       {
                         backgroundColor,
                         color: textColor,
-                        borderColor:
-                          Platform.OS === "ios" ? "#cccccc80" : "transparent",
+                        borderColor: "#CCCCCC80",
                         borderWidth: StyleSheet.hairlineWidth,
                       },
                     ]}
@@ -592,8 +590,7 @@ export function SettingsModal({ visible, onClose }: SettingsModalProps) {
                     {
                       backgroundColor,
                       color: textColor,
-                      borderColor:
-                        Platform.OS === "ios" ? "#cccccc80" : "transparent",
+                      borderColor: "#CCCCCC80",
                       borderWidth: StyleSheet.hairlineWidth,
                     },
                   ]}
