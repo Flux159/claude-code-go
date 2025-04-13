@@ -11,7 +11,16 @@ import threading
 import psutil
 from collections import deque
 
+# Add the parent directory to sys.path to allow imports from the root
+sys.path.insert(0, os.path.abspath(os.path.dirname(os.path.dirname(__file__))))
+
+# Now import from auth module
+from server.auth import token_required, authenticate_user, create_access_token
+from server.auth.cors_middleware import handle_cors
+
 app = Flask(__name__)
+# Setup CORS handling
+handle_cors(app)
 
 # Store recent errors for automatic inclusion in Claude prompts
 # Using a deque for a fixed-size FIFO queue
@@ -253,8 +262,34 @@ def stop_web_command():
             print(f"Error stopping web command: {e}")
             return False
 
+# Auth routes
+@app.route("/auth/login", methods=["POST"])
+def login():
+    try:
+        data = request.get_json()
+        username = data.get("username")
+        password = data.get("password")
+        
+        if not username or not password:
+            return jsonify({"error": "Username and password are required"}), 400
+            
+        if authenticate_user(username, password):
+            access_token = create_access_token(username)
+            return jsonify({"access_token": access_token, "username": username}), 200
+        else:
+            return jsonify({"error": "Invalid credentials"}), 401
+    except Exception as e:
+        return jsonify({"error": f"Login failed: {str(e)}"}), 500
+
+@app.route("/auth/ping", methods=["GET"])
+@token_required
+def ping():
+    """Simple endpoint to check if the user is authenticated"""
+    return jsonify({"message": "Authenticated", "username": request.username}), 200
+
 
 @app.route("/directories", methods=["GET"])
+@token_required
 def get_directories():
     try:
         relative = (
@@ -276,6 +311,7 @@ def get_directories():
 
 
 @app.route("/directories", methods=["POST"])
+@token_required
 def list_directory():
     try:
         data = request.get_json()
@@ -300,6 +336,7 @@ def list_directory():
 
 
 @app.route("/report-error", methods=["POST"])
+@token_required
 def report_error():
     """Endpoint to receive errors from the Next.js application"""
     try:
@@ -358,6 +395,7 @@ def report_error():
 
 
 @app.route("/prompt", methods=["POST"])
+@token_required
 def execute_command():
     try:
         print("\n" + "-" * 80)
@@ -573,6 +611,7 @@ def generate_sse_response(command: str, directory: str, include_errors: bool = T
 
 
 @app.route("/promptstream", methods=["GET"])
+@token_required
 def prompt_stream_get():
     command = request.args.get("command")
     directory = request.args.get("directory")
@@ -593,6 +632,7 @@ def prompt_stream_get():
 
 
 @app.route("/promptstream", methods=["POST"])
+@token_required
 def prompt_stream_post():
     data = request.get_json()
     command = data.get("command")
@@ -614,6 +654,7 @@ def prompt_stream_post():
 
 
 @app.route("/errors", methods=["GET"])
+@token_required
 def get_errors():
     """Endpoint to retrieve current stored errors"""
     error_count = len(recent_errors)
@@ -638,6 +679,7 @@ def get_errors():
 
 
 @app.route("/clear-errors", methods=["POST"])
+@token_required
 def clear_errors():
     """Endpoint to manually clear all stored errors"""
     try:
@@ -677,6 +719,7 @@ def get_git_command():
 
 
 @app.route("/git/status", methods=["POST"])
+@token_required
 def git_status():
     """Get the status of the git repository."""
     try:
@@ -840,6 +883,7 @@ def git_status():
 
 
 @app.route("/git/diff", methods=["POST"])
+@token_required
 def git_diff():
     """Get the diff of a specific file or all files."""
     try:
@@ -893,6 +937,7 @@ def git_diff():
 
 
 @app.route("/git/reset-file", methods=["POST"])
+@token_required
 def git_reset_file():
     """Reset changes to a specific file."""
     try:
@@ -971,6 +1016,7 @@ def git_reset_file():
 
 
 @app.route("/git/commit", methods=["POST"])
+@token_required
 def git_commit():
     """Create a new commit with the provided message."""
     try:
@@ -1069,6 +1115,7 @@ def git_commit():
 
 
 @app.route("/git/push", methods=["POST"])
+@token_required
 def git_push():
     """Push changes to the remote repository."""
     try:
@@ -1120,6 +1167,7 @@ def git_push():
 
 
 @app.route("/git/create-pr", methods=["POST"])
+@token_required
 def git_create_pr():
     """Create a pull request."""
     try:
@@ -1212,6 +1260,7 @@ def git_create_pr():
 
 
 @app.route("/reset", methods=["POST"])
+@token_required
 def git_reset():
     try:
         data = request.get_json()
@@ -1288,6 +1337,7 @@ def git_reset():
 
 
 @app.route("/web-command", methods=["GET"])
+@token_required
 def get_web_command_status():
     """Get the status of the web command process."""
     with web_command_lock:
@@ -1321,6 +1371,7 @@ def get_web_command_status():
 
 
 @app.route("/web-command/start", methods=["POST"])
+@token_required
 def start_web_command_endpoint():
     """Start the web command process."""
     try:
@@ -1350,6 +1401,7 @@ def start_web_command_endpoint():
 
 
 @app.route("/web-command/stop", methods=["POST"])
+@token_required
 def stop_web_command_endpoint():
     """Stop the web command process."""
     try:
@@ -1369,6 +1421,7 @@ def stop_web_command_endpoint():
 
 
 @app.route("/web-command/restart", methods=["POST"])
+@token_required
 def restart_web_command_endpoint():
     """Restart the web command process."""
     try:
@@ -1411,6 +1464,7 @@ def restart_web_command_endpoint():
 
 
 @app.route("/web-command/output", methods=["GET"])
+@token_required
 def get_web_command_output():
     """Get the output of the web command process."""
     try:
@@ -1439,6 +1493,7 @@ def get_web_command_output():
 
 
 @app.route("/web-command/logs", methods=["GET"])
+@token_required
 def get_web_command_logs():
     """Get the logs of the web command process."""
     try:

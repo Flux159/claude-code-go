@@ -9,6 +9,7 @@ import {
   ActivityIndicator,
   FlatList,
 } from "react-native";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useAppContext } from "@/contexts/AppContext";
 import { ThemedView } from "@/components/ThemedView";
 import { ThemedText } from "@/components/ThemedText";
@@ -16,6 +17,7 @@ import { IconSymbol } from "@/components/ui/IconSymbol";
 import { useThemeColor } from "@/hooks/useThemeColor";
 import { Constants } from "@/constants/Constants";
 import { useFocusEffect } from "expo-router";
+import { TOKEN_STORAGE_KEY } from "@/utils/api";
 
 // Types for Git status and diff
 interface GitFile {
@@ -57,12 +59,16 @@ export default function GitChangesScreen() {
       if (!currentDirectory) return;
 
       try {
+        // Get auth token
+        const token = await AsyncStorage.getItem(TOKEN_STORAGE_KEY);
+        
         const response = await fetch(
           `http://${hostname}:${Constants.serverPort}/git/diff`,
           {
             method: "POST",
             headers: {
               "Content-Type": "application/json",
+              "Authorization": token ? `Bearer: ${token}` : "",
             },
             body: JSON.stringify({
               directory: currentDirectory,
@@ -96,12 +102,16 @@ export default function GitChangesScreen() {
     setErrorMessage(null);
 
     try {
+      // Get auth token
+      const token = await AsyncStorage.getItem(TOKEN_STORAGE_KEY);
+      
       const response = await fetch(
         `http://${hostname}:${Constants.serverPort}/git/status`,
         {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
+            "Authorization": token ? `Bearer: ${token}` : "",
           },
           body: JSON.stringify({
             directory: currentDirectory,
@@ -148,12 +158,16 @@ export default function GitChangesScreen() {
     setErrorMessage(null);
 
     try {
+      // Get auth token
+      const token = await AsyncStorage.getItem(TOKEN_STORAGE_KEY);
+      
       const response = await fetch(
         `http://${hostname}:${Constants.serverPort}/git/reset-file`,
         {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
+            "Authorization": token ? `Bearer: ${token}` : "",
           },
           body: JSON.stringify({
             directory: currentDirectory,
@@ -208,12 +222,16 @@ export default function GitChangesScreen() {
     setErrorMessage(null);
 
     try {
+      // Get auth token
+      const token = await AsyncStorage.getItem(TOKEN_STORAGE_KEY);
+      
       const response = await fetch(
         `http://${hostname}:${Constants.serverPort}/reset`,
         {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
+            "Authorization": token ? `Bearer: ${token}` : "",
           },
           body: JSON.stringify({
             directory: currentDirectory,
@@ -248,12 +266,16 @@ export default function GitChangesScreen() {
     setErrorMessage(null);
 
     try {
+      // Get auth token
+      const token = await AsyncStorage.getItem(TOKEN_STORAGE_KEY);
+      
       const response = await fetch(
         `http://${hostname}:${Constants.serverPort}/git/commit`,
         {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
+            "Authorization": token ? `Bearer: ${token}` : "",
           },
           body: JSON.stringify({
             directory: currentDirectory,
@@ -289,12 +311,16 @@ export default function GitChangesScreen() {
     setErrorMessage(null);
 
     try {
+      // Get auth token
+      const token = await AsyncStorage.getItem(TOKEN_STORAGE_KEY);
+      
       const response = await fetch(
         `http://${hostname}:${Constants.serverPort}/git/push`,
         {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
+            "Authorization": token ? `Bearer: ${token}` : "",
           },
           body: JSON.stringify({
             directory: currentDirectory,
@@ -326,12 +352,16 @@ export default function GitChangesScreen() {
     setErrorMessage(null);
 
     try {
+      // Get auth token
+      const token = await AsyncStorage.getItem(TOKEN_STORAGE_KEY);
+      
       const response = await fetch(
         `http://${hostname}:${Constants.serverPort}/git/create-pr`,
         {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
+            "Authorization": token ? `Bearer: ${token}` : "",
           },
           body: JSON.stringify({
             directory: currentDirectory,
