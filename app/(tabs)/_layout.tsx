@@ -117,7 +117,6 @@ export default function TabLayout() {
                 {false && (
                   <TouchableOpacity
                     style={{
-                      marginRight: 8,
                       padding: 12,
                       minWidth: 44,
                       minHeight: 44,
@@ -194,7 +193,6 @@ export default function TabLayout() {
               <View style={{ flexDirection: "row" }}>
                 <TouchableOpacity
                   style={{
-                    marginRight: 8,
                     padding: 12,
                     minWidth: 44,
                     minHeight: 44,

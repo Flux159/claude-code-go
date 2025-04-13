@@ -748,7 +748,7 @@ const styles = StyleSheet.create({
     marginLeft: 4,
   },
   activeTabText: {
-    fontWeight: "600",
+    fontWeight: "bold",
   },
   pathDisplay: {
     padding: 10,

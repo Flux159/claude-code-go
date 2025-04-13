@@ -676,7 +676,7 @@ export default function GitChangesScreen() {
                   }
                 >
                   {actionLoading ? (
-                    <ActivityIndicator size="small" color="#fff" />
+                    <ActivityIndicator />
                   ) : (
                     <Text style={styles.actionButtonText}>Commit</Text>
                   )}

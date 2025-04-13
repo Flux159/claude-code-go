@@ -39,14 +39,14 @@ interface WebCommandStatus {
 }
 
 export function WebPreviewSettings({ visible, onClose }: WebPreviewSettingsProps) {
-  const { 
-    hostname, 
-    port, 
-    webCommand, 
-    setWebCommand, 
-    currentDirectory 
+  const {
+    hostname,
+    port,
+    webCommand,
+    setWebCommand,
+    currentDirectory
   } = useAppContext();
-  
+
   const [status, setStatus] = useState<WebCommandStatus | null>(null);
   const [loading, setLoading] = useState<boolean>(false);
   const [isStarting, setIsStarting] = useState<boolean>(false);
@@ -55,12 +55,11 @@ export function WebPreviewSettings({ visible, onClose }: WebPreviewSettingsProps
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const [logs, setLogs] = useState<string[]>([]);
   const [commandInput, setCommandInput] = useState(webCommand);
-  
+
   const tintColor = useThemeColor({}, "tint");
   const backgroundColor = useThemeColor({}, "background");
   const textColor = useThemeColor({}, "text");
-  const borderColor = useThemeColor({}, "border");
-  const placeholderColor = useThemeColor({}, "placeholder");
+  const dividerColor = useThemeColor({}, "divider");
   const inputBackgroundColor = useThemeColor({}, "inputBackground");
   const cardBackgroundColor = useThemeColor({}, "card");
 
@@ -69,13 +68,13 @@ export function WebPreviewSettings({ visible, onClose }: WebPreviewSettingsProps
     // If the current directory contains claude-next-app, use it directly
     if (currentDirectory?.includes('claude-next-app')) {
       return currentDirectory;
-    } 
+    }
     // Otherwise use the root project directory + claude-next-app
     else if (currentDirectory) {
       // Extract the project root - go up to the claude-code-go root if possible
       const parts = currentDirectory.split('/');
       const claudeCodeGoIndex = parts.findIndex(part => part === 'claude-code-go');
-      
+
       if (claudeCodeGoIndex >= 0) {
         // Rebuild the path up to claude-code-go and add claude-next-app
         const rootPath = parts.slice(0, claudeCodeGoIndex + 1).join('/');
@@ -192,7 +191,7 @@ export function WebPreviewSettings({ visible, onClose }: WebPreviewSettingsProps
         if (commandInput !== webCommand) {
           setWebCommand(commandInput);
         }
-        
+
         await fetchStatusWithLoading();
         await fetchLogsWithLoading();
       }
@@ -259,7 +258,7 @@ export function WebPreviewSettings({ visible, onClose }: WebPreviewSettingsProps
         if (commandInput !== webCommand) {
           setWebCommand(commandInput);
         }
-        
+
         await fetchStatusWithLoading();
         await fetchLogsWithLoading();
       }
@@ -318,7 +317,7 @@ export function WebPreviewSettings({ visible, onClose }: WebPreviewSettingsProps
 
   return (
     <Modal
-      animationType="slide"
+      animationType="fade"
       transparent={true}
       visible={visible}
       onRequestClose={onClose}
@@ -329,215 +328,217 @@ export function WebPreviewSettings({ visible, onClose }: WebPreviewSettingsProps
           style={styles.keyboardAvoidingView}
         >
           <ThemedView style={styles.modalContent}>
-          <View style={styles.modalHeader}>
-            <ThemedText style={styles.modalTitle}>Web Preview Settings</ThemedText>
-            <TouchableOpacity style={styles.closeButton} onPress={onClose}>
-              <IconSymbol 
-                name="xmark" 
-                size={24} 
-                color={textColor} 
-              />
-            </TouchableOpacity>
-          </View>
+            <View style={[styles.modalHeader, { borderBottomColor: dividerColor }]}>
+              <ThemedText style={styles.modalTitle}>Web Preview Settings</ThemedText>
+              <TouchableOpacity style={styles.closeButton} onPress={onClose}>
+                <IconSymbol
+                  name="xmark"
+                  size={20}
+                  color={textColor}
+                />
+              </TouchableOpacity>
+            </View>
 
-          <ScrollView 
-            style={[styles.scrollContainer, { backgroundColor }]}
-            contentContainerStyle={styles.contentContainer}
-          >
-            {/* Server Information Section */}
-            <ThemedView style={[styles.sectionContainer, { backgroundColor: cardBackgroundColor }]}>
-              <ThemedText style={styles.sectionTitle}>Server Information</ThemedText>
-              
-              <View style={styles.infoRow}>
-                <ThemedText style={styles.infoLabel}>Status:</ThemedText>
-                <View style={styles.statusDisplay}>
-                  {loading ? (
-                    <ActivityIndicator size="small" color={tintColor} style={{ marginRight: 6 }} />
-                  ) : (
-                    <View
-                      style={[
-                        styles.statusDot,
-                        {
-                          backgroundColor: status?.running
-                            ? "#4CAF50"
-                            : "#F44336",
-                        },
-                      ]}
-                    />
-                  )}
-                  <ThemedText>
-                    {loading
-                      ? "Checking..."
-                      : status?.running
-                      ? "Running"
-                      : "Stopped"}
-                  </ThemedText>
-                </View>
-              </View>
+            <ScrollView
+              style={[styles.scrollContainer, { backgroundColor }]}
+              contentContainerStyle={styles.contentContainer}
+            >
+              {/* Server Information Section */}
+              <ThemedView style={{ backgroundColor: cardBackgroundColor }}>
+                <ThemedText style={styles.sectionTitle}>Server Information</ThemedText>
 
-              <View style={styles.infoRow}>
-                <ThemedText style={styles.infoLabel}>URL:</ThemedText>
-                <ThemedText style={styles.infoValue}>{`http://${hostname}:${port}`}</ThemedText>
-              </View>
-
-              <View style={styles.infoRow}>
-                <ThemedText style={styles.infoLabel}>Directory:</ThemedText>
-                <ThemedText style={styles.infoValue}>{serverDirectory}</ThemedText>
-              </View>
-
-              {status?.running && (
                 <View style={styles.infoRow}>
-                  <ThemedText style={styles.infoLabel}>PID:</ThemedText>
-                  <ThemedText style={styles.infoValue}>{status.pid}</ThemedText>
+                  <ThemedText style={styles.infoLabel}>Status:</ThemedText>
+                  <View style={styles.statusDisplay}>
+                    {loading ? (
+                      <ActivityIndicator size="small" color={tintColor} style={{ marginRight: 6 }} />
+                    ) : (
+                      <View
+                        style={[
+                          styles.statusDot,
+                          {
+                            backgroundColor: status?.running
+                              ? "#4CAF50"
+                              : "#F44336",
+                          },
+                        ]}
+                      />
+                    )}
+                    <ThemedText style={styles.statusText}>
+                      {loading
+                        ? "Checking..."
+                        : status?.running
+                          ? "Running"
+                          : "Stopped"}
+                    </ThemedText>
+                  </View>
                 </View>
-              )}
-            </ThemedView>
 
-            {/* Server Control Section */}
-            <ThemedView style={[styles.sectionContainer, { backgroundColor: cardBackgroundColor }]}>
-              <ThemedText style={styles.sectionTitle}>Server Control</ThemedText>
-              
-              <View style={styles.commandInputContainer}>
-                <ThemedText style={styles.inputLabel}>Command:</ThemedText>
-                <TextInput
+                <View style={styles.infoRow}>
+                  <ThemedText style={styles.infoLabel}>URL:</ThemedText>
+                  <ThemedText style={styles.infoValue}>{`http://${hostname}:${port}`}</ThemedText>
+                </View>
+
+                <View style={styles.infoRow}>
+                  <ThemedText style={styles.infoLabel}>Directory:</ThemedText>
+                  <ThemedText style={styles.infoValue}>{serverDirectory}</ThemedText>
+                </View>
+
+                {status?.running && (
+                  <View style={styles.infoRow}>
+                    <ThemedText style={styles.infoLabel}>PID:</ThemedText>
+                    <ThemedText style={styles.infoValue}>{status.pid}</ThemedText>
+                  </View>
+                )}
+              </ThemedView>
+
+              {/* Server Control Section */}
+              <ThemedView style={{ backgroundColor: cardBackgroundColor }}>
+                <ThemedText style={styles.sectionTitle}>Server Control</ThemedText>
+
+                <View style={styles.commandInputContainer}>
+                  <ThemedText style={styles.inputLabel}>Command:</ThemedText>
+                  <TextInput
+                    style={[
+                      styles.commandInput,
+                      {
+                        backgroundColor: inputBackgroundColor,
+                        color: textColor,
+                        borderWidth: StyleSheet.hairlineWidth,
+                        borderColor: dividerColor,
+                      },
+                    ]}
+                    placeholder="npm run dev"
+                    placeholderTextColor="#999"
+                    value={commandInput}
+                    onChangeText={setCommandInput}
+                  />
+                </View>
+
+                <View style={styles.buttonRow}>
+                  <TouchableOpacity
+                    style={[
+                      styles.actionButton,
+                      styles.startButton,
+                      (isStarting || status?.running) && styles.buttonDisabled,
+                    ]}
+                    onPress={startCommand}
+                    disabled={isStarting || status?.running}
+                  >
+                    {isStarting ? (
+                      <ActivityIndicator color="#fff" size="small" />
+                    ) : (
+                      <>
+                        <IconSymbol name="play.fill" size={12} color="#fff" />
+                        <ThemedText style={styles.buttonText}>Start</ThemedText>
+                      </>
+                    )}
+                  </TouchableOpacity>
+
+                  <TouchableOpacity
+                    style={[
+                      styles.actionButton,
+                      styles.stopButton,
+                      (isStopping || !status?.running) && styles.buttonDisabled,
+                    ]}
+                    onPress={stopCommand}
+                    disabled={isStopping || !status?.running}
+                  >
+                    {isStopping ? (
+                      <ActivityIndicator />
+                    ) : (
+                      <>
+                        <IconSymbol name="stop.fill" size={12} color="#fff" />
+                        <ThemedText style={styles.buttonText}>Stop</ThemedText>
+                      </>
+                    )}
+                  </TouchableOpacity>
+
+                  <TouchableOpacity
+                    style={[
+                      styles.actionButton,
+                      styles.restartButton,
+                      isRestarting && styles.buttonDisabled,
+                    ]}
+                    onPress={restartCommand}
+                    disabled={isRestarting}
+                  >
+                    {isRestarting ? (
+                      <ActivityIndicator />
+                    ) : (
+                      <>
+                        <IconSymbol name="arrow.clockwise" size={12} color="#fff" />
+                        <ThemedText style={styles.buttonText}>Restart</ThemedText>
+                      </>
+                    )}
+                  </TouchableOpacity>
+                </View>
+              </ThemedView>
+
+              {/* Server Logs Section */}
+              <ThemedView style={{ backgroundColor: cardBackgroundColor }}>
+                <View style={styles.logsHeader}>
+                  <ThemedText style={styles.logsSectionTitle}>Server Logs</ThemedText>
+                  <TouchableOpacity
+                    style={styles.refreshButton}
+                    onPress={fetchLogsWithLoading}
+                    disabled={isLoading}
+                  >
+                    {isLoading ? (
+                      <ActivityIndicator />
+                    ) : (
+                      <IconSymbol
+                        name="arrow.clockwise"
+                        size={16}
+                        color={tintColor}
+                      />
+                    )}
+                  </TouchableOpacity>
+                </View>
+
+                <ThemedView
                   style={[
-                    styles.commandInput,
+                    styles.logsContainer,
                     {
                       backgroundColor: inputBackgroundColor,
-                      color: textColor,
-                      borderColor,
+                      borderWidth: StyleSheet.hairlineWidth,
+                      borderColor: dividerColor,
                     },
                   ]}
-                  placeholder="npm run dev"
-                  placeholderTextColor={placeholderColor}
-                  value={commandInput}
-                  onChangeText={setCommandInput}
-                />
-              </View>
-
-              <View style={styles.buttonRow}>
-                <TouchableOpacity
-                  style={[
-                    styles.actionButton,
-                    styles.startButton,
-                    (isStarting || status?.running) && styles.buttonDisabled,
-                  ]}
-                  onPress={startCommand}
-                  disabled={isStarting || status?.running}
                 >
-                  {isStarting ? (
-                    <ActivityIndicator color="#fff" size="small" />
-                  ) : (
-                    <>
-                      <IconSymbol name="play.fill" size={12} color="#fff" />
-                      <ThemedText style={styles.buttonText}>Start</ThemedText>
-                    </>
-                  )}
-                </TouchableOpacity>
-
-                <TouchableOpacity
-                  style={[
-                    styles.actionButton,
-                    styles.stopButton,
-                    (isStopping || !status?.running) && styles.buttonDisabled,
-                  ]}
-                  onPress={stopCommand}
-                  disabled={isStopping || !status?.running}
-                >
-                  {isStopping ? (
-                    <ActivityIndicator color="#fff" size="small" />
-                  ) : (
-                    <>
-                      <IconSymbol name="stop.fill" size={12} color="#fff" />
-                      <ThemedText style={styles.buttonText}>Stop</ThemedText>
-                    </>
-                  )}
-                </TouchableOpacity>
-
-                <TouchableOpacity
-                  style={[
-                    styles.actionButton,
-                    styles.restartButton,
-                    isRestarting && styles.buttonDisabled,
-                  ]}
-                  onPress={restartCommand}
-                  disabled={isRestarting}
-                >
-                  {isRestarting ? (
-                    <ActivityIndicator color="#fff" size="small" />
-                  ) : (
-                    <>
-                      <IconSymbol name="arrow.clockwise" size={12} color="#fff" />
-                      <ThemedText style={styles.buttonText}>Restart</ThemedText>
-                    </>
-                  )}
-                </TouchableOpacity>
-              </View>
-            </ThemedView>
-
-            {/* Server Logs Section */}
-            <ThemedView style={[styles.sectionContainer, { backgroundColor: cardBackgroundColor }]}>
-              <View style={styles.logsHeader}>
-                <ThemedText style={styles.sectionTitle}>Server Logs</ThemedText>
-                <TouchableOpacity
-                  style={styles.refreshButton}
-                  onPress={fetchLogsWithLoading}
-                  disabled={isLoading}
-                >
-                  {isLoading ? (
-                    <ActivityIndicator size="small" color={tintColor} />
-                  ) : (
-                    <IconSymbol
-                      name="arrow.clockwise"
-                      size={16}
-                      color={tintColor}
-                    />
-                  )}
-                </TouchableOpacity>
-              </View>
-
-              <ThemedView
-                style={[
-                  styles.logsContainer,
-                  {
-                    backgroundColor: inputBackgroundColor,
-                    borderColor,
-                  },
-                ]}
-              >
-                <ScrollView style={styles.logsScrollView}>
-                  {logs.length > 0 ? (
-                    logs.map((log, index) => (
-                      <ThemedText
-                        key={index}
-                        style={[
-                          styles.logLine,
-                          log.includes("ERROR") && styles.errorLog,
-                        ]}
-                      >
-                        {log}
+                  <ScrollView style={styles.logsScrollView}>
+                    {logs.length > 0 ? (
+                      logs.map((log, index) => (
+                        <ThemedText
+                          key={index}
+                          style={[
+                            styles.logLine,
+                            log.includes("ERROR") && styles.errorLog,
+                          ]}
+                        >
+                          {log}
+                        </ThemedText>
+                      ))
+                    ) : (
+                      <ThemedText style={styles.noLogsText}>
+                        No logs available
                       </ThemedText>
-                    ))
-                  ) : (
-                    <ThemedText style={styles.noLogsText}>
-                      No logs available
-                    </ThemedText>
-                  )}
-                </ScrollView>
+                    )}
+                  </ScrollView>
+                </ThemedView>
               </ThemedView>
-            </ThemedView>
-          </ScrollView>
+            </ScrollView>
 
-          {/* Footer with action buttons */}
-          <View style={styles.footer}>
-            <TouchableOpacity 
-              style={styles.closeButtonFull}
-              onPress={onClose}
-            >
-              <ThemedText style={styles.closeButtonText}>Close</ThemedText>
-            </TouchableOpacity>
-          </View>
-        </ThemedView>
+            {/* Footer with action buttons */}
+            <View style={[styles.footer, { borderTopColor: dividerColor }]}>
+              <TouchableOpacity
+                style={styles.closeButtonFull}
+                onPress={onClose}
+              >
+                <ThemedText style={styles.closeButtonText}>Close</ThemedText>
+              </TouchableOpacity>
+            </View>
+          </ThemedView>
         </KeyboardAvoidingView>
       </SafeAreaView>
     </Modal>
@@ -593,22 +594,14 @@ const styles = StyleSheet.create({
     padding: 16,
     gap: 16,
   },
-  sectionContainer: {
-    borderRadius: 12,
-    padding: 16,
-    shadowColor: "#000",
-    shadowOffset: {
-      width: 0,
-      height: 1,
-    },
-    shadowOpacity: 0.1,
-    shadowRadius: 2,
-    elevation: 2,
-  },
   sectionTitle: {
     fontSize: 16,
-    fontWeight: "600",
+    fontWeight: "bold",
     marginBottom: 12,
+  },
+  logsSectionTitle: {
+    fontSize: 16,
+    fontWeight: "bold",
   },
   infoRow: {
     flexDirection: "row",
@@ -618,7 +611,6 @@ const styles = StyleSheet.create({
   },
   infoLabel: {
     fontSize: 14,
-    fontWeight: "500",
   },
   infoValue: {
     fontSize: 14,
@@ -653,7 +645,7 @@ const styles = StyleSheet.create({
   buttonRow: {
     flexDirection: "row",
     justifyContent: "space-between",
-    gap: 8,
+    gap: 16,
   },
   actionButton: {
     flex: 1,
@@ -677,8 +669,7 @@ const styles = StyleSheet.create({
     opacity: 0.5,
   },
   buttonText: {
-    color: "#fff",
-    fontWeight: "600",
+    color: "white",
     fontSize: 14,
   },
   logsHeader: {
@@ -688,7 +679,7 @@ const styles = StyleSheet.create({
     marginBottom: 12,
   },
   refreshButton: {
-    padding: 4,
+    padding: 8,
   },
   logsContainer: {
     borderWidth: 1,
@@ -707,10 +698,10 @@ const styles = StyleSheet.create({
     color: "#F44336",
   },
   noLogsText: {
-    fontStyle: "italic",
+    fontSize: 16,
+    color: "#999",
     textAlign: "center",
     marginTop: 10,
-    opacity: 0.7,
   },
   footer: {
     padding: 16,
@@ -723,8 +714,9 @@ const styles = StyleSheet.create({
     alignItems: "center",
   },
   closeButtonText: {
-    color: "#fff",
-    fontWeight: "600",
-    fontSize: 16,
+    color: "white"
+  },
+  statusText: {
+    fontSize: 14,
   },
 });
