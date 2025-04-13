@@ -20,20 +20,25 @@ import { IconSymbol } from "./ui/IconSymbol";
 import { useSpeechRecognition } from "@/hooks/useSpeechRecognition";
 
 export function ChatInput() {
-  // Get device height for responsive layout
-  const { height: deviceHeight } = Platform.OS === 'ios' 
-    ? require('react-native').Dimensions.get('window')
-    : { height: 0 };
+  // Get device dimensions for responsive layout
+  const { height: deviceHeight, width: deviceWidth } = 
+    require('react-native').Dimensions.get('window');
   
-  // Track keyboard visibility state
+  // Track keyboard visibility state and height
   const [isKeyboardVisible, setIsKeyboardVisible] = useState(false);
+  const [keyboardHeight, setKeyboardHeight] = useState(0);
   
   // Set up keyboard event listeners
   useEffect(() => {
+    // Track if device is an iPhone with a notch (iPhone X and newer)
+    const isIPhoneWithNotch = Platform.OS === 'ios' && !Platform.isPad && deviceHeight >= 812;
+    
     const keyboardWillShowListener = Keyboard.addListener(
       Platform.OS === 'ios' ? 'keyboardWillShow' : 'keyboardDidShow',
-      () => {
+      (e) => {
         setIsKeyboardVisible(true);
+        setKeyboardHeight(e.endCoordinates.height);
+        console.log('Keyboard height:', e.endCoordinates.height);
       }
     );
     
@@ -41,6 +46,7 @@ export function ChatInput() {
       Platform.OS === 'ios' ? 'keyboardWillHide' : 'keyboardDidHide',
       () => {
         setIsKeyboardVisible(false);
+        setKeyboardHeight(0);
       }
     );
     
@@ -48,7 +54,7 @@ export function ChatInput() {
       keyboardWillShowListener.remove();
       keyboardWillHideListener.remove();
     };
-  }, []);
+  }, [deviceHeight]);
   const [text, setText] = useState("");
   const {
     hostname,
@@ -269,7 +275,9 @@ export function ChatInput() {
         { 
           backgroundColor, 
           borderTopColor: dividerColor,
-          paddingBottom: isKeyboardVisible ? (Platform.OS === 'ios' ? 34 : 8) : 8 
+          paddingBottom: isKeyboardVisible ? 
+            (deviceHeight >= 812 ? 36 : 24) : // More padding for iPhone X+ models, less for SE
+            8 // Default padding when keyboard is hidden
         }
       ]}
     >
