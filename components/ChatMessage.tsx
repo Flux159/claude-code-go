@@ -13,19 +13,19 @@ const formatCompactJSON = (json: any): string => {
   // For objects and arrays, show a preview with limited entries
   if (typeof json === 'object') {
     if (json === null) return 'null';
-    
+
     const isArray = Array.isArray(json);
     const entries = isArray ? json : Object.entries(json);
     const totalLength = isArray ? entries.length : entries.length;
-    
+
     // Limit to first 3 entries
-    const displayEntries = isArray 
-      ? entries.slice(0, 3) 
+    const displayEntries = isArray
+      ? entries.slice(0, 3)
       : Object.entries(json).slice(0, 3);
-    
+
     // Format the preview
     let result = isArray ? '[\n' : '{\n';
-    
+
     displayEntries.forEach((entry, index) => {
       if (isArray) {
         result += `  ${JSON.stringify(entry, null, 1).replace(/\n/g, '\n  ')}`;
@@ -38,16 +38,16 @@ const formatCompactJSON = (json: any): string => {
       }
       result += '\n';
     });
-    
+
     // Add ellipsis if there are more entries
     if (totalLength > 3) {
       result += `  ... (${totalLength - 3} more items)\n`;
     }
-    
+
     result += isArray ? ']' : '}';
     return result;
   }
-  
+
   // For primitive values, just stringify
   return JSON.stringify(json, null, 2);
 };
@@ -55,7 +55,7 @@ const formatCompactJSON = (json: any): string => {
 const formatCompactText = (text: string): string => {
   // If it's a code block with too many lines, show a preview
   const lines = text.split('\n');
-  
+
   if (lines.length > 7) {
     // Show first 3 lines + last 3 lines
     return [
@@ -64,30 +64,30 @@ const formatCompactText = (text: string): string => {
       ...lines.slice(-3)
     ].join('\n');
   }
-  
+
   return text;
 };
 
 // Formats diff output with color highlighting
 const formatDiff = (text: string): JSX.Element => {
   if (!text) return <></>;
-  
+
   const lines = text.split('\n');
-  
+
   // Create elements for each line with appropriate styling
   const elements = lines.map((line, index) => {
-    if (line.startsWith('+') && !line.startsWith('+++')){
+    if (line.startsWith('+') && !line.startsWith('+++')) {
       // Added line - green
-      return <ThemedText key={index} style={{color: '#4CAF50', fontFamily: Platform.OS === 'ios' ? 'Menlo' : 'monospace'}}>{line}</ThemedText>;
+      return <ThemedText key={index} style={{ color: '#4CAF50', fontFamily: Platform.OS === 'ios' ? 'Menlo' : 'monospace' }}>{line}</ThemedText>;
     } else if (line.startsWith('-') && !line.startsWith('---')) {
       // Removed line - red
-      return <ThemedText key={index} style={{color: '#F44336', fontFamily: Platform.OS === 'ios' ? 'Menlo' : 'monospace'}}>{line}</ThemedText>;
+      return <ThemedText key={index} style={{ color: '#F44336', fontFamily: Platform.OS === 'ios' ? 'Menlo' : 'monospace' }}>{line}</ThemedText>;
     } else {
       // Context line - normal
-      return <ThemedText key={index} style={{fontFamily: Platform.OS === 'ios' ? 'Menlo' : 'monospace'}}>{line}</ThemedText>;
+      return <ThemedText key={index} style={{ fontFamily: Platform.OS === 'ios' ? 'Menlo' : 'monospace' }}>{line}</ThemedText>;
     }
   });
-  
+
   // Join elements with line breaks
   return (
     <>
@@ -104,15 +104,15 @@ const formatDiff = (text: string): JSX.Element => {
 // Checks if text looks like a diff output
 const isDiffOutput = (text: string): boolean => {
   if (!text) return false;
-  
+
   // Simple heuristic: check if content has lines starting with + or - and contains @@ markers
   const lines = text.split('\n');
-  const hasDiffMarkers = lines.some(line => 
-    (line.startsWith('+') && !line.startsWith('+++')) || 
+  const hasDiffMarkers = lines.some(line =>
+    (line.startsWith('+') && !line.startsWith('+++')) ||
     (line.startsWith('-') && !line.startsWith('---'))
   );
   const hasHunkHeaders = text.includes('@@ ');
-  
+
   return hasDiffMarkers && hasHunkHeaders;
 };
 
@@ -126,7 +126,7 @@ export const LoadingDots = () => {
     "Thinking",
     "Processing",
     "Analyzing",
-    "Computing", 
+    "Computing",
     "Pondering",
     "Contemplating",
     "Honking",
@@ -173,11 +173,11 @@ export const LoadingDots = () => {
     "Unraveling",
     "Assessing"
   ];
-  
+
   const waitingEmojis = [
-    "⚔️", "🐉", "🐠", "🪄", "🔍", "🧠", "🦉", "📊", 
+    "⚔️", "🐉", "🐠", "🪄", "🔍", "🧠", "🦉", "📊",
     "🔮", "🦙", "🎯", "🧩", "🧬", "💭", "🤔", "⏳",
-    "🚀", "🌟", "🧿", "🦢", "🔥", "🧪", "🧮", "🦾", 
+    "🚀", "🌟", "🧿", "🦢", "🔥", "🧪", "🧮", "🦾",
     "🌌", "🧲", "🦚", "🦄", "🐙", "🧸", "🪐", "🎲",
     "🎭", "🐢", "🦇", "🦋", "🦜", "🦁", "🎨", "🎧",
     "🧫", "🔆", "🛸", "🎪", "🦔", "🌈", "🐿️", "☄️",
@@ -189,7 +189,7 @@ export const LoadingDots = () => {
     "🧵", "🎁", "📚", "💡", "🥽", "⚗️", "🧿", "🧶",
     "🔧", "⌛", "📝", "🏺", "🧨", "🌠", "💫", "🍀"
   ];
-  
+
   const [currentWordIndex, setCurrentWordIndex] = useState(
     Math.floor(Math.random() * waitingWords.length)
   );
@@ -203,7 +203,7 @@ export const LoadingDots = () => {
     const emojiInterval = setInterval(() => {
       setCurrentEmojiIndex(prev => (prev + 1) % waitingEmojis.length);
     }, 1000);
-    
+
     // Check if 30 seconds have passed since component mounted
     const textInterval = setInterval(() => {
       const timeElapsed = Date.now() - sessionStartTime;
@@ -223,9 +223,14 @@ export const LoadingDots = () => {
   }, [sessionStartTime, waitingEmojis.length, waitingWords.length]);
 
   return (
-    <ThemedText style={styles.loadingDots}>
-      {waitingEmojis[currentEmojiIndex]} {waitingWords[currentWordIndex]}...
-    </ThemedText>
+    <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+      <ThemedText style={{ marginRight: 8 }}>
+        {waitingEmojis[currentEmojiIndex]}
+      </ThemedText>
+      <ThemedText style={{ color: '#999' }}>
+        {waitingWords[currentWordIndex]}...
+      </ThemedText>
+    </View>
   );
 };
 
@@ -236,9 +241,9 @@ export function ChatMessage({ message, toolResultsMap = {} }: ChatMessageProps) 
   const assistantBubbleColor = useThemeColor({}, 'assistantBubble');
   const systemBubbleColor = useThemeColor({}, 'background');
   const colorScheme = useColorScheme();
-  
+
   // Get theme colors for code blocks
-  const codeBlockBg = useThemeColor({}, 'codeBlock');
+  const codeBackgroundColor = useThemeColor({}, 'codeBackground');
   const codeBorderColor = useThemeColor({}, 'codeBorder');
   const dividerColor = useThemeColor({}, 'divider');
 
@@ -246,7 +251,7 @@ export function ChatMessage({ message, toolResultsMap = {} }: ChatMessageProps) 
   const formattedTime = (() => {
     try {
       if (!message.timestamp) return '';
-      
+
       // If it's already a Date object with the method
       if (message.timestamp instanceof Date && typeof message.timestamp.toLocaleTimeString === 'function') {
         return message.timestamp.toLocaleTimeString([], {
@@ -254,7 +259,7 @@ export function ChatMessage({ message, toolResultsMap = {} }: ChatMessageProps) 
           minute: '2-digit',
         });
       }
-      
+
       // If it's a serialized date string
       const date = new Date(message.timestamp);
       if (!isNaN(date.getTime())) {
@@ -263,7 +268,7 @@ export function ChatMessage({ message, toolResultsMap = {} }: ChatMessageProps) 
           minute: '2-digit',
         });
       }
-      
+
       return '';
     } catch (error) {
       console.error('Error formatting timestamp:', error);
@@ -349,13 +354,13 @@ export function ChatMessage({ message, toolResultsMap = {} }: ChatMessageProps) 
               <View style={[
                 styles.codeBlock,
                 styles.inputCodeBlock,
-                { 
-                  backgroundColor: codeBlockBg,
+                {
+                  backgroundColor: codeBackgroundColor,
                   borderColor: codeBorderColor
                 }
               ]}>
+                {false && <ThemedText style={styles.toolHeader}>Input:</ThemedText>}
                 <ThemedText selectable={true} style={[styles.toolResult, styles.scrollableText]}>
-                  <ThemedText style={styles.toolHeader}>Input:</ThemedText>{'\n'}
                   {typeof item.input === 'object'
                     ? formatCompactJSON(item.input)
                     : formatCompactText(String(item.input || ''))}
@@ -367,13 +372,13 @@ export function ChatMessage({ message, toolResultsMap = {} }: ChatMessageProps) 
 
               {/* Result section - compact with diff highlighting */}
               <View style={[
-                styles.codeBlock, 
-                { 
-                  backgroundColor: codeBlockBg,
+                styles.codeBlock,
+                {
+                  backgroundColor: codeBackgroundColor,
                   borderColor: codeBorderColor
                 }
               ]}>
-                <ThemedText style={styles.toolHeader}>Result:</ThemedText>
+                {false && <ThemedText style={styles.toolHeader}>Result:</ThemedText>}
                 {typeof item.result === 'object' ? (
                   <ThemedText selectable={true} style={[styles.toolResult, styles.scrollableText]}>
                     {formatCompactJSON(item.result)}
@@ -397,8 +402,8 @@ export function ChatMessage({ message, toolResultsMap = {} }: ChatMessageProps) 
               <View style={[
                 styles.codeBlock,
                 styles.inputCodeBlock,
-                { 
-                  backgroundColor: codeBlockBg,
+                {
+                  backgroundColor: codeBackgroundColor,
                   borderColor: codeBorderColor
                 }
               ]}>
@@ -415,9 +420,9 @@ export function ChatMessage({ message, toolResultsMap = {} }: ChatMessageProps) 
           return (
             <Collapsible key={item.key} title="Tool Result">
               <View style={[
-                styles.codeBlock, 
-                { 
-                  backgroundColor: codeBlockBg,
+                styles.codeBlock,
+                {
+                  backgroundColor: codeBackgroundColor,
                   borderColor: codeBorderColor
                 }
               ]}>
@@ -519,13 +524,6 @@ const styles = StyleSheet.create({
     color: 'white',
   },
   assistantText: {},
-  loadingDots: {
-    fontSize: 16,
-    color: '#f28c28', // Orange color
-    fontWeight: 'bold',
-    minWidth: 150,
-    lineHeight: 24,
-  },
   toolUse: {
     fontStyle: 'italic',
     opacity: 0.8,
@@ -535,18 +533,16 @@ const styles = StyleSheet.create({
     fontSize: 12,
   },
   toolHeader: {
-    fontWeight: 'bold',
     marginBottom: 4,
   },
   scrollableText: {
     flexShrink: 1,
   },
   codeBlock: {
-    borderRadius: 4,
+    borderRadius: 8,
     padding: 8,
     width: '100%',
     overflow: 'scroll',
-    borderWidth: 1,
   },
   inputCodeBlock: {
     maxHeight: 150, // Limit height of input section

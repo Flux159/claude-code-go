@@ -148,17 +148,15 @@ export function ChatInput() {
                 typeof item.input === "object"
                   ? JSON.stringify(item.input, null, 2)
                   : String(item.input || "");
-              return `<tool_call name="${item.name || ""}" id="${
-                item.id || ""
-              }">\n${formattedInput}\n</tool_call>`;
+              return `<tool_call name="${item.name || ""}" id="${item.id || ""
+                }">\n${formattedInput}\n</tool_call>`;
             } else if (item.type === "tool_result") {
               const formattedContent =
                 typeof item.content === "object"
                   ? JSON.stringify(item.content, null, 2)
                   : String(item.content || "");
-              return `<tool_result tool_use_id="${
-                item.tool_use_id || ""
-              }">\n${formattedContent}\n</tool_result>`;
+              return `<tool_result tool_use_id="${item.tool_use_id || ""
+                }">\n${formattedContent}\n</tool_result>`;
             }
             return "";
           })
@@ -427,6 +425,8 @@ const styles = StyleSheet.create({
     borderColor: "#444",
     justifyContent: "center",
     alignItems: "center",
+    paddingTop: Platform.OS === "ios" ? 10 : 8,
+    paddingBottom: Platform.OS === "ios" ? 10 : 8,
   },
   iconButtonRecording: {
     borderColor: "#ff6b6b", // Use direct value or reference styles.errorColor

@@ -15,6 +15,7 @@ import { ChatHistory } from "@/components/ChatHistory";
 
 declare global {
   var webViewRef: any;
+  var globalFetchGitStatus: (() => Promise<void>) | null;
 }
 
 export default function TabLayout() {
@@ -79,37 +80,7 @@ export default function TabLayout() {
         <Tabs.Screen
           name="index"
           options={{
-            headerTitle: () => {
-              const textColor = Colors[colorScheme ?? "light"].text;
-              return (
-                <View style={{ flexDirection: "row", alignItems: "center" }}>
-                  <Text
-                    style={{
-                      fontSize: 18,
-                      fontWeight: "bold",
-                      color: textColor,
-                    }}
-                  >
-                    Claude Go
-                  </Text>
-                  {pendingErrorCount > 0 && (
-                    <View
-                      style={[
-                        styles.errorBadge,
-                        {
-                          position: "relative",
-                          marginLeft: 8,
-                          top: 0,
-                          right: 0,
-                        },
-                      ]}
-                    >
-                      <Text style={styles.errorText}>{pendingErrorCount}</Text>
-                    </View>
-                  )}
-                </View>
-              );
-            },
+            headerTitle: "Claude Go",
             tabBarLabel: "Chat",
             tabBarIcon: ({ color }) => (
               <View>
@@ -163,24 +134,26 @@ export default function TabLayout() {
             ),
             headerRight: () => (
               <View style={{ flexDirection: "row" }}>
-                <TouchableOpacity
-                  style={{
-                    marginRight: 8,
-                    padding: 12,
-                    minWidth: 44,
-                    minHeight: 44,
-                    alignItems: "center",
-                    justifyContent: "center",
-                  }}
-                  onPress={() => clearMessages()}
-                  hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-                >
-                  <IconSymbol
-                    name="plus.square"
-                    size={20}
-                    color={Colors[colorScheme ?? "light"].tint}
-                  />
-                </TouchableOpacity>
+                {false && (
+                  <TouchableOpacity
+                    style={{
+                      marginRight: 8,
+                      padding: 12,
+                      minWidth: 44,
+                      minHeight: 44,
+                      alignItems: "center",
+                      justifyContent: "center",
+                    }}
+                    onPress={() => clearMessages()}
+                    hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+                  >
+                    <IconSymbol
+                      name="plus.square"
+                      size={20}
+                      color={Colors[colorScheme ?? "light"].tint}
+                    />
+                  </TouchableOpacity>
+                )}
                 <TouchableOpacity
                   style={{
                     marginRight: 16,
@@ -207,7 +180,7 @@ export default function TabLayout() {
           name="web-preview"
           options={{
             headerTitle: () => (
-              <Text style={{ fontSize: 16, color: textColor }}>
+              <Text style={{ fontSize: 14, color: textColor }}>
                 {displayUrl}
               </Text>
             ),
@@ -259,32 +232,6 @@ export default function TabLayout() {
               <View style={{ flexDirection: "row" }}>
                 <TouchableOpacity
                   style={{
-                    marginRight: 8,
-                    padding: 12,
-                    minWidth: 44,
-                    minHeight: 44,
-                    alignItems: "center",
-                    justifyContent: "center",
-                  }}
-                  onPress={() => {
-                    if (global.webViewRef && global.webViewRef.current) {
-                      // Use injectJavaScript to navigate to home page
-                      global.webViewRef.current.injectJavaScript(`
-                        window.location.href = '/';
-                        true; // This is needed for the injected script to run properly
-                      `);
-                    }
-                  }}
-                  hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-                >
-                  <IconSymbol
-                    name="house"
-                    size={20}
-                    color={Colors[colorScheme ?? "light"].tint}
-                  />
-                </TouchableOpacity>
-                <TouchableOpacity
-                  style={{
                     marginRight: 16,
                     padding: 12,
                     minWidth: 44,
@@ -295,6 +242,10 @@ export default function TabLayout() {
                   onPress={() => {
                     if (global.webViewRef && global.webViewRef.current) {
                       global.webViewRef.current.reload();
+                      global.webViewRef.current.injectJavaScript(`
+                        window.location.href = '/';
+                        true; // This is needed for the injected script to run properly
+                      `);
                     }
                   }}
                   hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
@@ -313,8 +264,8 @@ export default function TabLayout() {
           name="git-changes"
           options={{
             headerTitle: () => (
-              <Text style={{ fontSize: 18, fontWeight: "bold", color: textColor }}>
-                Git Changes
+              <Text style={{ fontSize: 14, color: textColor }}>
+                {currentDirectory ? currentDirectory.split('/').pop() : ""}
               </Text>
             ),
             tabBarLabel: "Git",
@@ -362,32 +313,30 @@ export default function TabLayout() {
               </View>
             ),
             headerRight: () => (
-              <View style={{ flexDirection: "row", alignItems: "center", paddingRight: 16 }}>
+              <View style={{ flexDirection: "row" }}>
                 <TouchableOpacity
                   style={{
-                    marginRight: 12,
-                    padding: 8,
-                    minWidth: 36,
-                    minHeight: 36,
+                    marginRight: 16,
+                    padding: 12,
+                    minWidth: 44,
+                    minHeight: 44,
                     alignItems: "center",
                     justifyContent: "center",
                   }}
                   onPress={() => {
-                    // This will trigger a reload when the global GitRefreshTrigger is used in the GitChanges component
-                    // Just changing the screen to go there again will trigger the useFocusEffect
-                    // We're not exposing a direct method since that would be more involved architecture-wise
+                    // Call the global fetchGitStatus function if available
+                    if (typeof globalFetchGitStatus === 'function') {
+                      globalFetchGitStatus();
+                    }
                   }}
                   hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
                 >
                   <IconSymbol
                     name="arrow.clockwise"
-                    size={18}
+                    size={20}
                     color={Colors[colorScheme ?? "light"].tint}
                   />
                 </TouchableOpacity>
-                <ThemedText style={{ fontSize: 14 }}>
-                  {currentDirectory ? currentDirectory.split('/').pop() : ""}
-                </ThemedText>
               </View>
             ),
           }}

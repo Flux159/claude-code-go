@@ -219,12 +219,12 @@ export function ChatHistory({ isVisible, onClose }: ChatHistoryProps) {
                             : new Date(chat.timestamp),
                         messages: Array.isArray(chat.messages)
                           ? chat.messages.map((msg) => ({
-                              ...msg,
-                              timestamp:
-                                msg.timestamp instanceof Date
-                                  ? msg.timestamp
-                                  : new Date(msg.timestamp),
-                            }))
+                            ...msg,
+                            timestamp:
+                              msg.timestamp instanceof Date
+                                ? msg.timestamp
+                                : new Date(msg.timestamp),
+                          }))
                           : [],
                       })
                     );
@@ -276,7 +276,7 @@ export function ChatHistory({ isVisible, onClose }: ChatHistoryProps) {
               <IconSymbol name="trash" size={20} color={tintColor} />
             </TouchableOpacity>
             <TouchableOpacity onPress={onClose} style={styles.closeButton}>
-              <IconSymbol name="chevron.right" size={24} color={tintColor} />
+              <IconSymbol name="xmark" size={20} color={tintColor} />
             </TouchableOpacity>
           </View>
         </View>
@@ -308,20 +308,20 @@ export function ChatHistory({ isVisible, onClose }: ChatHistoryProps) {
                     <View style={styles.chatItemContent}>
                       <ThemedText
                         style={[
-                          styles.chatTime,
-                          chat.id === currentChatId && styles.activeChatText,
-                        ]}
-                      >
-                        {formatChatTime(chat.timestamp)}
-                      </ThemedText>
-                      <ThemedText
-                        style={[
                           styles.chatPreview,
                           chat.id === currentChatId && styles.activeChatText,
                         ]}
                         numberOfLines={2}
                       >
                         {getFirstUserMessage(chat)}
+                      </ThemedText>
+                      <ThemedText
+                        style={[
+                          styles.chatTime,
+                          chat.id === currentChatId && styles.activeChatText,
+                        ]}
+                      >
+                        {formatChatTime(chat.timestamp)}
                       </ThemedText>
                     </View>
                     {chat.id === currentChatId && (
@@ -434,10 +434,11 @@ const styles = StyleSheet.create({
   chatTime: {
     fontSize: 12,
     opacity: 0.7,
-    marginBottom: 4,
+    marginTop: 0,
   },
   chatPreview: {
     fontSize: 14,
+    marginBottom: 4,
   },
   activeChatText: {
     fontWeight: "500",
