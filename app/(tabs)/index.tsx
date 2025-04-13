@@ -28,6 +28,9 @@ export default function ChatScreen() {
   // Track if user is at bottom of chat
   const [isAtBottom, setIsAtBottom] = useState(true);
   const scrollButtonOpacity = useRef(new Animated.Value(0)).current;
+  // Track whether scroll was initiated by user or programmatically
+  const isUserScrolling = useRef(false);
+  const lastScrollY = useRef(0);
 
   // Create a global tool results map
   const toolResultsMap = React.useMemo(() => {
@@ -142,6 +145,10 @@ export default function ChatScreen() {
                 flatListRef.current?.scrollToEnd({ animated: true });
               }
             }}
+            onScrollBeginDrag={() => {
+              // User initiated scroll
+              isUserScrolling.current = true;
+            }}
             onScroll={(event) => {
               const offsetY = event.nativeEvent.contentOffset.y;
               const contentHeight = event.nativeEvent.contentSize.height;
@@ -150,13 +157,20 @@ export default function ChatScreen() {
               // Consider user at bottom if within 20px of bottom
               const isClose = contentHeight - offsetY - scrollViewHeight < 20;
 
-              // Only dismiss keyboard on intentional scrolling when not at bottom
-              // This prevents dismissal when keyboard appears or when chat is pinned to bottom
-              if (!isClose && isAtBottom) {
+              // Detect significant manual scrolling (more than 10px) from bottom to up
+              const scrollDelta = offsetY - lastScrollY.current;
+              lastScrollY.current = offsetY;
+              
+              // Only dismiss keyboard on intentional user scrolling away from bottom
+              if (isUserScrolling.current && !isClose && isAtBottom && Math.abs(scrollDelta) > 10) {
                 Keyboard.dismiss();
               }
 
               setIsAtBottom(isClose);
+            }}
+            onMomentumScrollEnd={() => {
+              // Reset user scrolling flag after scroll momentum ends
+              isUserScrolling.current = false;
             }}
             scrollEventThrottle={200}
           />
