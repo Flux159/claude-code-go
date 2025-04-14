@@ -727,6 +727,7 @@ const styles = StyleSheet.create({
   loadingText: {
     marginTop: 16,
     fontSize: 16,
+    color: "#999",
   },
   errorContainer: {
     backgroundColor: "#FFCDD2",

@@ -513,7 +513,7 @@ export function SidebarMenu({ isVisible, onClose }: SidebarMenuProps) {
 
             {isLoading ? (
               <View style={styles.loaderContainer}>
-                <ActivityIndicator size="large" color={tintColor} />
+                <ActivityIndicator />
                 <ThemedText style={styles.loaderText}>Loading...</ThemedText>
               </View>
             ) : error ? (
@@ -838,6 +838,7 @@ const styles = StyleSheet.create({
   },
   loaderText: {
     marginTop: 10,
+    color: "#999",
   },
   errorContainer: {
     flex: 1,
@@ -865,6 +866,6 @@ const styles = StyleSheet.create({
     alignItems: "center",
   },
   emptyText: {
-    opacity: 0.5,
+    color: "#999",
   },
 });
