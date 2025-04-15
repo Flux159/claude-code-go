@@ -484,15 +484,11 @@ export function WebPreviewSettings({ visible, onClose }: WebPreviewSettingsProps
                     onPress={fetchLogsWithLoading}
                     disabled={isLoading}
                   >
-                    {isLoading ? (
-                      <ActivityIndicator />
-                    ) : (
-                      <IconSymbol
-                        name="arrow.clockwise"
-                        size={16}
-                        color={tintColor}
-                      />
-                    )}
+                    <IconSymbol
+                      name="arrow.clockwise"
+                      size={16}
+                      color={tintColor}
+                    />
                   </TouchableOpacity>
                 </View>
 
